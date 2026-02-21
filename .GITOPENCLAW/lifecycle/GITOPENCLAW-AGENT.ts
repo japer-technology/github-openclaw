@@ -263,10 +263,11 @@ try {
     "--thinking",
     configuredThinkingLevel,
   ];
-  if (mode === "resume" && sessionId) {
-    // Pass the prior session ID so the agent can recall earlier context.
-    openclawArgs.push("--session-id", sessionId);
-  }
+  // Always pass a session ID so the agent can route the conversation.
+  // For resumed sessions use the prior ID; for new issues use a stable
+  // identifier derived from the issue number.
+  const resolvedSessionId = sessionId || `issue-${issueNumber}`;
+  openclawArgs.push("--session-id", resolvedSessionId);
 
   // Pipe agent output through `tee` so we get:
   //   • a live stream to stdout (visible in the Actions log in real time), and
@@ -305,11 +306,6 @@ try {
     const rawOutput = readFileSync("/tmp/agent-raw.json", "utf-8").trim();
     agentText = rawOutput;
   }
-
-  // ── Determine session ID for mapping ─────────────────────────────────────────
-  // Use the issue number as a stable session identifier if no explicit session
-  // was returned. The session ID persists across runs for the same issue.
-  const resolvedSessionId = sessionId || `issue-${issueNumber}`;
 
   // ── Persist issue → session mapping ─────────────────────────────────────────
   // Write (or overwrite) the mapping file so that the next run for this issue

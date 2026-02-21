@@ -341,6 +341,21 @@ describe("OpenClaw integration", () => {
     assert.ok(agent.includes("configuredThinkingLevel"));
   });
 
+  it("always passes --session-id to openclaw agent (new and resumed)", () => {
+    // The agent must always pass --session-id so that openclaw agent doesn't
+    // error with "Pass --to" when activated by a new issue (no prior session).
+    assert.ok(
+      agent.includes('openclawArgs.push("--session-id", resolvedSessionId)'),
+      "Agent must unconditionally push --session-id into openclawArgs"
+    );
+    // The session ID must NOT be gated behind a resume-only condition.
+    assert.ok(
+      !agent.includes('if (mode === "resume"') ||
+        agent.includes('openclawArgs.push("--session-id", resolvedSessionId)'),
+      "session-id push must not be conditional on resume mode"
+    );
+  });
+
   it("package.json depends on openclaw", () => {
     const pkg = JSON.parse(readFile(".GITOPENCLAW/package.json"));
     assert.ok(pkg.dependencies.openclaw, "package.json must depend on openclaw");
