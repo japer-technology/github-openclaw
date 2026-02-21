@@ -41,12 +41,19 @@
  * SESSION CONTINUITY
  * ─────────────────────────────────────────────────────────────────────────────
  * GitOpenClaw maintains per-issue session state in:
- *   .GITOPENCLAW/state/issues/<number>.json   — maps issue # → session ID
- *   .GITOPENCLAW/state/sessions/<id>.jsonl    — the session transcript
+ *   .GITOPENCLAW/state/issues/<number>.json   — maps issue # → session ID + path
+ *   .GITOPENCLAW/state/sessions/<id>.jsonl    — the session transcript (git-tracked)
  *
- * On every run the agent checks for an existing mapping.  If the mapped session
- * file is still present, the run "resumes" by passing `--session-id <id>` to
- * OpenClaw, giving the agent full memory of all prior exchanges for that issue.
+ * The OpenClaw runtime writes session transcripts to its internal directory
+ * (`state/agents/main/sessions/`), which is ephemeral on CI runners (gitignored).
+ * To preserve state across workflow runs, the orchestrator:
+ *   1. BEFORE the run: copies any archived transcript from `state/sessions/`
+ *      into the runtime directory so OpenClaw can locate it by session-id.
+ *   2. AFTER the run: copies the updated transcript back to `state/sessions/`
+ *      where it is committed to git and survives runner teardown.
+ *
+ * This copy-archive-restore cycle ensures multi-turn conversation continuity
+ * even though the CI runner is ephemeral.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * PUSH CONFLICT RESOLUTION
@@ -72,7 +79,7 @@
  * - Bun runtime                   — for Bun.spawn and top-level await
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from "fs";
 import { resolve } from "path";
 
 // ─── Paths and event context ───────────────────────────────────────────────────
@@ -87,6 +94,11 @@ const settingsPath = resolve(gitopenclawDir, "config", "settings.json");
 
 // The sessions directory as a relative path from repo root.
 const sessionsDirRelative = ".GITOPENCLAW/state/sessions";
+
+// OpenClaw writes session transcripts to its internal agents directory, which
+// is ephemeral on CI runners (gitignored).  We need to copy transcripts
+// between the git-tracked `state/sessions/` and the runtime directory.
+const agentSessionsDir = resolve(stateDir, "agents", "main", "sessions");
 
 // GitHub enforces a ~65 535 character limit on issue comments; cap at 60 000
 // characters to leave a comfortable safety margin and avoid API rejections.
@@ -211,6 +223,21 @@ try {
     }
   } else {
     console.log("No session mapping found, starting fresh");
+  }
+
+  // ── Restore session transcript for the OpenClaw runtime ──────────────────
+  // On a fresh CI runner the `agents/` directory is ephemeral (gitignored).
+  // The git-tracked archive lives in `state/sessions/`.  Before invoking the
+  // agent, copy the prior transcript into the runtime directory so OpenClaw
+  // can locate it by session-id and resume the conversation.
+  mkdirSync(agentSessionsDir, { recursive: true });
+  if (mode === "resume" && sessionId) {
+    const archivedTranscript = resolve(sessionsDir, `${sessionId}.jsonl`);
+    const runtimeTranscript = resolve(agentSessionsDir, `${sessionId}.jsonl`);
+    if (existsSync(archivedTranscript) && !existsSync(runtimeTranscript)) {
+      copyFileSync(archivedTranscript, runtimeTranscript);
+      console.log(`Restored session transcript: ${archivedTranscript} → ${runtimeTranscript}`);
+    }
   }
 
   // ── Configure git identity ───────────────────────────────────────────────────
@@ -383,6 +410,26 @@ try {
     agentText = rawOutput;
   }
 
+  // ── Archive session transcript to git-tracked state/sessions/ ──────────────
+  // The OpenClaw runtime writes session transcripts to the ephemeral `agents/`
+  // directory (gitignored).  Copy the transcript to `state/sessions/` so it
+  // survives across workflow runs — this is how .GITOPENCLAW holds state.
+  let sessionPath = "";
+  const runtimeTranscript = resolve(agentSessionsDir, `${resolvedSessionId}.jsonl`);
+  const archivedTranscript = resolve(sessionsDir, `${resolvedSessionId}.jsonl`);
+  if (existsSync(runtimeTranscript)) {
+    copyFileSync(runtimeTranscript, archivedTranscript);
+    sessionPath = `${sessionsDirRelative}/${resolvedSessionId}.jsonl`;
+    console.log(`Archived session transcript: ${runtimeTranscript} → ${archivedTranscript}`);
+  } else {
+    // If the runtime didn't write a transcript (e.g., the agent errored early),
+    // check if we already have one from a prior run.
+    if (existsSync(archivedTranscript)) {
+      sessionPath = `${sessionsDirRelative}/${resolvedSessionId}.jsonl`;
+    }
+    console.log("No new session transcript found in runtime directory");
+  }
+
   // ── Persist issue → session mapping ─────────────────────────────────────────
   // Write (or overwrite) the mapping file so that the next run for this issue
   // can locate the correct session and resume the conversation.
@@ -391,6 +438,7 @@ try {
     JSON.stringify({
       issueNumber,
       sessionId: resolvedSessionId,
+      sessionPath,
       updatedAt: new Date().toISOString(),
     }, null, 2) + "\n"
   );
