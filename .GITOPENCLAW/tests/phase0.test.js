@@ -36,6 +36,31 @@ describe("Workflow triggers", () => {
     assert.match(template, /issues:\s*\n\s*types:\s*\[.*opened.*\]/);
     assert.match(template, /issue_comment:\s*\n\s*types:\s*\[.*created.*\]/);
   });
+
+  it("has timeout-minutes set on the job", () => {
+    assert.ok(
+      workflow.includes("timeout-minutes:"),
+      "Workflow job must have timeout-minutes to prevent indefinite hangs"
+    );
+    assert.match(
+      workflow,
+      /timeout-minutes:\s*10/,
+      "timeout-minutes should be 10"
+    );
+  });
+
+  it("workflow template also has timeout-minutes", () => {
+    const template = readFile(".GITOPENCLAW/install/GITOPENCLAW-WORKFLOW-AGENT.yml");
+    assert.ok(
+      template.includes("timeout-minutes:"),
+      "Template workflow job must have timeout-minutes"
+    );
+    assert.match(
+      template,
+      /timeout-minutes:\s*10/,
+      "Template timeout-minutes should be 10"
+    );
+  });
 });
 
 // ── 2. Authorization gating ────────────────────────────────────────────────
@@ -314,6 +339,62 @@ describe("Error handling", () => {
     assert.ok(
       agent.includes("did not produce a text response"),
       "Agent should post an error message when response is empty"
+    );
+  });
+
+  it("defines AGENT_TIMEOUT_MS constant", () => {
+    assert.ok(
+      agent.includes("AGENT_TIMEOUT_MS"),
+      "Agent must define an overall timeout for the agent subprocess"
+    );
+    assert.match(
+      agent,
+      /AGENT_TIMEOUT_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/,
+      "AGENT_TIMEOUT_MS should be 5 minutes (5 * 60 * 1000)"
+    );
+  });
+
+  it("defines AGENT_EXIT_GRACE_MS constant", () => {
+    assert.ok(
+      agent.includes("AGENT_EXIT_GRACE_MS"),
+      "Agent must define a grace period for the agent to exit after output is captured"
+    );
+    assert.match(
+      agent,
+      /AGENT_EXIT_GRACE_MS\s*=\s*10[_]?000/,
+      "AGENT_EXIT_GRACE_MS should be 10 seconds"
+    );
+  });
+
+  it("uses Promise.race for timeout-aware agent execution", () => {
+    assert.ok(
+      agent.includes("Promise.race"),
+      "Agent must use Promise.race to implement timeout"
+    );
+  });
+
+  it("kills agent process on timeout", () => {
+    assert.ok(
+      agent.includes("agent.kill()"),
+      "Agent must kill the agent subprocess when it times out or exceeds grace period"
+    );
+  });
+
+  it("clears timeout timers to prevent event-loop leaks", () => {
+    assert.ok(
+      agent.includes("clearTimeout(agentTimerId)"),
+      "Agent must clear the main timeout timer"
+    );
+    assert.ok(
+      agent.includes("clearTimeout(graceTimerId)"),
+      "Agent must clear the grace-period timer"
+    );
+  });
+
+  it("treats SIGTERM exit code 143 as success", () => {
+    assert.ok(
+      agent.includes("143"),
+      "Agent must allow exit code 143 (SIGTERM) when it kills the process itself"
     );
   });
 });

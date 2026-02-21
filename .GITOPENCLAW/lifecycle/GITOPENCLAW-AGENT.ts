@@ -91,6 +91,18 @@ const sessionsDirRelative = ".GITOPENCLAW/state/sessions";
 // characters to leave a comfortable safety margin and avoid API rejections.
 const MAX_COMMENT_LENGTH = 60000;
 
+// Maximum time (in ms) to wait for the agent process to produce output.
+// If the agent does not close stdout within this window, both the agent and
+// the `tee` helper are forcefully killed.  5 minutes is generous enough to
+// cover large prompts while still surfacing hangs quickly.
+const AGENT_TIMEOUT_MS = 5 * 60 * 1000;
+
+// After the agent's stdout closes (output fully captured), we give the
+// process a short grace period to exit on its own before killing it.
+// This prevents the script from hanging when the agent keeps running after
+// writing its response (the exact symptom reported in the issue).
+const AGENT_EXIT_GRACE_MS = 10_000;
+
 // Parse the full GitHub Actions event payload (contains issue/comment details).
 const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH!, "utf-8"));
 
@@ -274,11 +286,54 @@ try {
   //   • a persisted copy at `/tmp/agent-raw.json` for post-processing below.
   const agent = Bun.spawn(openclawArgs, { stdout: "pipe", stderr: "inherit" });
   const tee = Bun.spawn(["tee", "/tmp/agent-raw.json"], { stdin: agent.stdout, stdout: "inherit" });
-  await tee.exited;
 
-  // Check if the openclaw agent exited successfully.
-  const agentExitCode = await agent.exited;
-  if (agentExitCode !== 0) {
+  // ── Timeout-aware wait for output capture ──────────────────────────────────
+  // `tee` exits when the agent's stdout closes (EOF).  If the agent never
+  // closes stdout the race timeout fires, and we kill both processes.
+  let agentTimedOut = false;
+  let agentTimerId: ReturnType<typeof setTimeout> | undefined;
+
+  const teeResult = await Promise.race([
+    tee.exited.then(() => "done" as const),
+    new Promise<"timeout">((resolve) => {
+      agentTimerId = setTimeout(() => resolve("timeout"), AGENT_TIMEOUT_MS);
+    }),
+  ]);
+  clearTimeout(agentTimerId);
+
+  if (teeResult === "timeout") {
+    agentTimedOut = true;
+    console.error(`Agent timed out after ${AGENT_TIMEOUT_MS / 1000}s — killing processes`);
+    agent.kill();
+    tee.kill();
+    await Promise.allSettled([agent.exited, tee.exited]);
+  }
+
+  // ── Grace period: wait for the agent process to exit ───────────────────────
+  // After `tee` exits the output has been fully captured to disk.  Give the
+  // agent a short window to exit on its own; if it doesn't, kill it so the
+  // script can continue with posting the reply and pushing state.
+  if (!agentTimedOut) {
+    let graceTimerId: ReturnType<typeof setTimeout> | undefined;
+    const graceResult = await Promise.race([
+      agent.exited.then((code) => code),
+      new Promise<null>((resolve) => {
+        graceTimerId = setTimeout(() => resolve(null), AGENT_EXIT_GRACE_MS);
+      }),
+    ]);
+    clearTimeout(graceTimerId);
+
+    if (graceResult === null) {
+      console.log("Agent process did not exit after output was captured — killing it");
+      agent.kill();
+      await agent.exited;
+    }
+  }
+
+  // Check the exit code.  SIGTERM (143 = 128 + 15) is expected when we
+  // killed the process ourselves after the grace period — treat it as success.
+  const agentExitCode = agent.exitCode ?? (await agent.exited);
+  if (agentExitCode !== 0 && agentExitCode !== 143) {
     throw new Error(`openclaw agent exited with code ${agentExitCode}. Check the workflow logs above for details.`);
   }
 
