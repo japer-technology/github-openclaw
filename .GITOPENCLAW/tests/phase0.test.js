@@ -633,8 +633,8 @@ describe("State persistence", () => {
       "Mapping must include sessionPath"
     );
     assert.ok(
-      agent.includes('.GITOPENCLAW/state/sessions/${resolvedSessionId}.jsonl'),
-      "sessionPath must reference the sessions directory with the session ID"
+      agent.includes('${sessionsDirRelative}/${resolvedSessionId}.jsonl'),
+      "sessionPath must be constructed from sessionsDirRelative and the session ID"
     );
   });
 });

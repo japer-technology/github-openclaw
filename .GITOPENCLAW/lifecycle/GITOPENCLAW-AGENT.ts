@@ -419,13 +419,13 @@ try {
   const archivedTranscript = resolve(sessionsDir, `${resolvedSessionId}.jsonl`);
   if (existsSync(runtimeTranscript)) {
     copyFileSync(runtimeTranscript, archivedTranscript);
-    sessionPath = `.GITOPENCLAW/state/sessions/${resolvedSessionId}.jsonl`;
+    sessionPath = `${sessionsDirRelative}/${resolvedSessionId}.jsonl`;
     console.log(`Archived session transcript: ${runtimeTranscript} → ${archivedTranscript}`);
   } else {
     // If the runtime didn't write a transcript (e.g., the agent errored early),
     // check if we already have one from a prior run.
     if (existsSync(archivedTranscript)) {
-      sessionPath = `.GITOPENCLAW/state/sessions/${resolvedSessionId}.jsonl`;
+      sessionPath = `${sessionsDirRelative}/${resolvedSessionId}.jsonl`;
     }
     console.log("No new session transcript found in runtime directory");
   }
