@@ -114,6 +114,42 @@ describe("Session persistence", () => {
     assert.ok(agent.includes("session"));
     assert.ok(agent.includes('mode = "resume"'));
   });
+
+  it("agent restores session transcripts before the run", () => {
+    const agent = readFile(".GITOPENCLAW/lifecycle/GITOPENCLAW-AGENT.ts");
+    assert.ok(
+      agent.includes("Restored session transcript"),
+      "Agent must copy archived transcripts to the runtime directory before running"
+    );
+    assert.ok(
+      agent.includes("copyFileSync(archivedTranscript, runtimeTranscript)"),
+      "Agent must use copyFileSync to restore session transcripts"
+    );
+  });
+
+  it("agent archives session transcripts after the run", () => {
+    const agent = readFile(".GITOPENCLAW/lifecycle/GITOPENCLAW-AGENT.ts");
+    assert.ok(
+      agent.includes("Archived session transcript"),
+      "Agent must copy runtime transcripts to the git-tracked directory after running"
+    );
+    assert.ok(
+      agent.includes("copyFileSync(runtimeTranscript, archivedTranscript)"),
+      "Agent must use copyFileSync to archive session transcripts"
+    );
+  });
+
+  it("agent defines agentSessionsDir for runtime session storage", () => {
+    const agent = readFile(".GITOPENCLAW/lifecycle/GITOPENCLAW-AGENT.ts");
+    assert.ok(
+      agent.includes("agentSessionsDir"),
+      "Agent must define the runtime agents sessions directory path"
+    );
+    assert.ok(
+      agent.includes('resolve(stateDir, "agents", "main", "sessions")'),
+      "agentSessionsDir must point to the OpenClaw runtime sessions path"
+    );
+  });
 });
 
 // ── 4. Issue → session mapping in state/issues/ ────────────────────────────
@@ -133,6 +169,18 @@ describe("Issue-session mapping", () => {
     const agent = readFile(".GITOPENCLAW/lifecycle/GITOPENCLAW-AGENT.ts");
     assert.ok(agent.includes("issueNumber"));
     assert.ok(agent.includes("sessionId"));
+  });
+
+  it("mapping includes sessionPath for git-tracked transcript", () => {
+    const agent = readFile(".GITOPENCLAW/lifecycle/GITOPENCLAW-AGENT.ts");
+    assert.ok(
+      agent.includes("sessionPath"),
+      "Mapping must include sessionPath pointing to the git-tracked transcript"
+    );
+    assert.ok(
+      agent.includes(".GITOPENCLAW/state/sessions/"),
+      "sessionPath must reference the git-tracked sessions directory"
+    );
   });
 });
 
@@ -525,6 +573,68 @@ describe("Runtime isolation", () => {
     assert.ok(
       !workflow.includes("pnpm build"),
       "Workflow must not build root project"
+    );
+  });
+});
+
+// ── State persistence — .GITOPENCLAW holds state across workflow runs ──────
+
+describe("State persistence", () => {
+  const agent = readFile(".GITOPENCLAW/lifecycle/GITOPENCLAW-AGENT.ts");
+
+  it("imports copyFileSync for session transcript archival", () => {
+    assert.ok(
+      agent.includes("copyFileSync"),
+      "Agent must import copyFileSync to copy session transcripts between directories"
+    );
+  });
+
+  it("creates agentSessionsDir before the run", () => {
+    assert.ok(
+      agent.includes("mkdirSync(agentSessionsDir"),
+      "Agent must create the runtime sessions directory before running"
+    );
+  });
+
+  it("restores archived transcripts to runtime directory before agent invocation", () => {
+    // The restore must happen BEFORE the agent runs so OpenClaw can find prior sessions
+    const restoreIdx = agent.indexOf("Restored session transcript");
+    const agentRunIdx = agent.indexOf("openclawArgs");
+    assert.ok(restoreIdx > 0 && agentRunIdx > 0);
+    assert.ok(
+      restoreIdx < agentRunIdx,
+      "Session restore must happen before agent invocation"
+    );
+  });
+
+  it("archives runtime transcripts to state/sessions/ after agent execution", () => {
+    // The archive must happen AFTER the agent runs to capture the new transcript
+    const archiveIdx = agent.indexOf("Archived session transcript");
+    const agentRunIdx = agent.indexOf("agent.kill()");
+    assert.ok(archiveIdx > 0 && agentRunIdx > 0);
+    assert.ok(
+      archiveIdx > agentRunIdx,
+      "Session archive must happen after agent execution"
+    );
+  });
+
+  it("state/.gitignore excludes ephemeral runtime data but allows sessions dir", () => {
+    const gitignore = readFile(".GITOPENCLAW/state/.gitignore");
+    // Sessions directory must NOT be excluded
+    assert.ok(
+      !gitignore.includes("sessions/"),
+      "state/.gitignore must NOT exclude the sessions/ directory"
+    );
+  });
+
+  it("mapping file includes sessionPath for the git-tracked transcript", () => {
+    assert.ok(
+      agent.includes("sessionPath"),
+      "Mapping must include sessionPath"
+    );
+    assert.ok(
+      agent.includes('.GITOPENCLAW/state/sessions/${resolvedSessionId}.jsonl'),
+      "sessionPath must reference the sessions directory with the session ID"
     );
   });
 });

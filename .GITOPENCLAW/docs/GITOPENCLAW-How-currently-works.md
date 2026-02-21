@@ -254,14 +254,17 @@ All mutable state is committed to git for full auditability:
 {
   "issueNumber": 1,
   "sessionId": "issue-1",
+  "sessionPath": ".GITOPENCLAW/state/sessions/issue-1.jsonl",
   "updatedAt": "2026-02-21T06:00:00.000Z"
 }
 ```
 
-Each issue gets a stable mapping to a session ID. This is how multi-turn conversations work across separate workflow runs.
+Each issue gets a stable mapping to a session ID and the path to its git-tracked transcript. This is how multi-turn conversations work across separate workflow runs.
 
 ### Sessions (`state/sessions/`)
-Conversation transcripts stored as JSONL files. The OpenClaw runtime manages the session content; `.GITOPENCLAW` just points it at the right directory.
+Conversation transcripts stored as JSONL files. The OpenClaw runtime writes session transcripts to its internal `agents/` directory (ephemeral, gitignored). After each run, the agent orchestrator copies the transcript to `state/sessions/` for git-tracked persistence. Before the next run, the transcript is restored from `state/sessions/` back to the runtime directory so OpenClaw can resume the conversation.
+
+This copy-archive-restore cycle ensures session state survives across ephemeral GitHub Actions runners while keeping the runtime's internal directories clean.
 
 ### Memory (`state/memory.log`)
 An append-only log file with `merge=union` git attribute to prevent merge conflicts when multiple branches update it.
