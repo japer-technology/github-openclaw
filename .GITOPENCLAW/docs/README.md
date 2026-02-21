@@ -8,6 +8,7 @@
 
 ### Guides and reference material for GitOpenClaw
 
+- [GITOPENCLAW-The-Idea.md](GITOPENCLAW-The-Idea.md) — The vision: why an AI agent should live inside your repo, powered by OpenClaw
 - [GITOPENCLAW-How-it-should-be-done.md](GITOPENCLAW-How-it-should-be-done.md) — The definitive guide: fork-as-installation, architecture, execution model, and update flow
 - [GITOPENCLAW-How-currently-works.md](GITOPENCLAW-How-currently-works.md) — How the system works today (architecture, lifecycle, fork-as-installation model)
 - [GITOPENCLAW-How-to-implement-the-Dashboard.md](GITOPENCLAW-How-to-implement-the-Dashboard.md) — How to present the OpenClaw dashboard via GitHub Pages for configuring .GITOPENCLAW
