@@ -1,6 +1,6 @@
 # japer-technology/gitopenclaw
 
-### OpenClaw AI Agent using HitHub as Infrastructure
+### OpenClaw AI Agent using GitHub as Infrastructure
 
 <p align="center">
   <picture>
@@ -25,6 +25,17 @@
 | **Persistent memory** | Conversations are stored as JSONL sessions committed to git |
 | **Full auditability** | Every response, every decision, every file change is in git history |
 | **OpenClaw-powered** | Access to 30+ tools, semantic memory, multi-channel capabilities |
+
+## Why GitHub as infrastructure
+
+GitHub isn't just a host — it **is** the infrastructure. Every repository is an isolated, fully provisioned agent environment with compute (Actions), storage (git), secrets management, and a built-in user interface (Issues). This means:
+
+- **As many agents as repos** — each repository gets its own independent agent with its own memory, configuration, and audit trail. Spin up a new agent by forking or copying the `.GITOPENCLAW/` folder into any repo.
+- **Single agent, multiple workspaces** — with some additional wiring (cross-repo dispatch or a shared state repo), a single agent can operate across multiple repositories, giving you one brain that understands several codebases.
+- **No infrastructure to manage** — no servers, no containers, no orchestrators. GitHub Actions provides the compute, git provides the persistence, and GitHub secrets provide the credential store.
+- **Scales with your org** — whether you have one repo or hundreds, every repo can have its own agent at zero marginal infrastructure cost. The scaling model is GitHub's, not yours.
+
+---
 
 ## How it works
 
