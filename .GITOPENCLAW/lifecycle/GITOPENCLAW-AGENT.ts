@@ -316,14 +316,14 @@ try {
   if (!agentTimedOut) {
     let graceTimerId: ReturnType<typeof setTimeout> | undefined;
     const graceResult = await Promise.race([
-      agent.exited.then((code) => code),
-      new Promise<null>((resolve) => {
-        graceTimerId = setTimeout(() => resolve(null), AGENT_EXIT_GRACE_MS);
+      agent.exited.then(() => "exited" as const),
+      new Promise<"timeout">((resolve) => {
+        graceTimerId = setTimeout(() => resolve("timeout"), AGENT_EXIT_GRACE_MS);
       }),
     ]);
     clearTimeout(graceTimerId);
 
-    if (graceResult === null) {
+    if (graceResult === "timeout") {
       console.log("Agent process did not exit after output was captured — killing it");
       agent.kill();
       await agent.exited;
@@ -332,7 +332,7 @@ try {
 
   // Check the exit code.  SIGTERM (143 = 128 + 15) is expected when we
   // killed the process ourselves after the grace period — treat it as success.
-  const agentExitCode = agent.exitCode ?? (await agent.exited);
+  const agentExitCode = await agent.exited;
   if (agentExitCode !== 0 && agentExitCode !== 143) {
     throw new Error(`openclaw agent exited with code ${agentExitCode}. Check the workflow logs above for details.`);
   }
