@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "openclaw": "2026.2.20"
+    "openclaw": "^2026.2.19"
   }
 }
