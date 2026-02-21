@@ -268,6 +268,25 @@ export function clearFinished() {
   finishedSessions.clear();
 }
 
+/**
+ * Kill all running sessions and clean up resources.
+ * Called during gateway shutdown to prevent orphaned child processes.
+ */
+export function killAllSessions(): void {
+  for (const session of runningSessions.values()) {
+    if (session.child && !session.exited) {
+      try {
+        session.child.kill("SIGKILL");
+      } catch {
+        // Process already exited
+      }
+    }
+  }
+  runningSessions.clear();
+  finishedSessions.clear();
+  stopSweeper();
+}
+
 export function resetProcessRegistryForTests() {
   runningSessions.clear();
   finishedSessions.clear();

@@ -99,4 +99,31 @@ describe("process supervisor", () => {
     expect(streamed).toBe("streamed");
     expect(exit.stdout).toBe("");
   });
+
+  it("cancelAll terminates all active runs", async () => {
+    const supervisor = createProcessSupervisor();
+    const a = await supervisor.spawn({
+      sessionId: "s-all-1",
+      backendId: "test",
+      scopeKey: "scope:x",
+      mode: "child",
+      argv: [process.execPath, "-e", "setTimeout(() => {}, 10_000)"],
+      timeoutMs: 10_000,
+      stdinMode: "pipe-closed",
+    });
+    const b = await supervisor.spawn({
+      sessionId: "s-all-2",
+      backendId: "test",
+      scopeKey: "scope:y",
+      mode: "child",
+      argv: [process.execPath, "-e", "setTimeout(() => {}, 10_000)"],
+      timeoutMs: 10_000,
+      stdinMode: "pipe-closed",
+    });
+
+    supervisor.cancelAll();
+    const [exitA, exitB] = await Promise.all([a.wait(), b.wait()]);
+    expect(exitA.reason === "manual-cancel" || exitA.reason === "signal").toBe(true);
+    expect(exitB.reason === "manual-cancel" || exitB.reason === "signal").toBe(true);
+  });
 });

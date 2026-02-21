@@ -58,6 +58,12 @@ export function createProcessSupervisor(): ProcessSupervisor {
     }
   };
 
+  const cancelAll = (reason: TerminationReason = "manual-cancel") => {
+    for (const runId of Array.from(active.keys())) {
+      cancel(runId, reason);
+    }
+  };
+
   const spawn = async (input: SpawnInput): Promise<ManagedRun> => {
     const runId = input.runId?.trim() || crypto.randomUUID();
     if (input.replaceExistingScope && input.scopeKey?.trim()) {
@@ -273,6 +279,7 @@ export function createProcessSupervisor(): ProcessSupervisor {
     spawn,
     cancel,
     cancelScope,
+    cancelAll,
     reconcileOrphans: async () => {
       // Deliberate no-op: this supervisor uses in-memory ownership only.
       // Active runs are not recovered after process restart in the current model.

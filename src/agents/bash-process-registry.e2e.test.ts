@@ -5,7 +5,10 @@ import {
   addSession,
   appendOutput,
   drainSession,
+  getSession,
+  killAllSessions,
   listFinishedSessions,
+  listRunningSessions,
   markBackgrounded,
   markExited,
   resetProcessRegistryForTests,
@@ -113,5 +116,42 @@ describe("bash process registry", () => {
     markBackgrounded(session);
     markExited(session, 0, null, "completed");
     expect(listFinishedSessions()).toHaveLength(1);
+  });
+
+  it("killAllSessions kills running children and clears registries", () => {
+    const killFn = vi.fn();
+    const child = {
+      pid: 100,
+      kill: killFn,
+      removeAllListeners: vi.fn(),
+    } as unknown as ChildProcessWithoutNullStreams;
+    const session = createProcessSessionFixture({
+      id: "kill-test",
+      command: "sleep 60",
+      child,
+      maxOutputChars: 1000,
+    });
+    addSession(session);
+    markBackgrounded(session);
+
+    const bgSession = createProcessSessionFixture({
+      id: "kill-test-bg",
+      command: "sleep 120",
+      child: {
+        pid: 200,
+        kill: killFn,
+        removeAllListeners: vi.fn(),
+      } as unknown as ChildProcessWithoutNullStreams,
+      maxOutputChars: 1000,
+    });
+    addSession(bgSession);
+
+    killAllSessions();
+
+    expect(killFn).toHaveBeenCalledWith("SIGKILL");
+    expect(getSession("kill-test")).toBeUndefined();
+    expect(getSession("kill-test-bg")).toBeUndefined();
+    expect(listRunningSessions()).toHaveLength(0);
+    expect(listFinishedSessions()).toHaveLength(0);
   });
 });
