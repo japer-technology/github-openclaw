@@ -48,8 +48,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bun .GITOPENCLAW/lifecycle/GITOPENCLAW-INDICATOR.ts
 
-      - name: Install dependencies
-        run: cd .GITOPENCLAW && bun install --frozen-lockfile
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        run: npm install -g pnpm@latest
+
+      - name: Install root dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install .GITOPENCLAW dependencies
+        run: cd .GITOPENCLAW && bun install
 
       - name: Run
         env:
