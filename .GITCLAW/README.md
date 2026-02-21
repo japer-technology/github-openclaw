@@ -1,4 +1,6 @@
-# .GITCLAW 🦞 An AI Agent As A Drop In (And Example to .GITOPENCLAW)
+# .GITCLAW 🦞 An AI Agent As A Drop In
+
+### An example for .GITOPENCLAW development
 
 <p align="center">
   <picture>
