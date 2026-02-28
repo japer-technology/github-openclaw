@@ -1,0 +1,99 @@
+name: GitHub Mode Skill Policy Classifier
+
+on:
+  workflow_dispatch:
+    inputs:
+      skill_digest:
+        description: Immutable digest being evaluated
+        required: true
+        type: string
+      policy_outcome:
+        description: Policy classifier outcome
+        required: true
+        type: choice
+        options:
+          - approved_limited
+          - approved_trusted
+          - rejected_policy
+      submitter:
+        description: Original submitter handle
+        required: true
+        type: string
+      security_approver:
+        description: Security approver handle
+        required: true
+        type: string
+      runtime_approver:
+        description: Runtime owner approver handle
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+
+      - name: Enforce two-party approval for approved_trusted
+        env:
+          OUTCOME: ${{ inputs.policy_outcome }}
+          SUBMITTER: ${{ inputs.submitter }}
+          SECURITY_APPROVER: ${{ inputs.security_approver }}
+          RUNTIME_APPROVER: ${{ inputs.runtime_approver }}
+        run: |
+          if [ "${OUTCOME}" != "approved_trusted" ]; then
+            exit 0
+          fi
+
+          if [ "${SECURITY_APPROVER}" = "${RUNTIME_APPROVER}" ]; then
+            echo "approved_trusted requires distinct approvers" >&2
+            exit 1
+          fi
+
+          if [ "${SUBMITTER}" = "${SECURITY_APPROVER}" ] || [ "${SUBMITTER}" = "${RUNTIME_APPROVER}" ]; then
+            echo "submitter cannot self-approve approved_trusted" >&2
+            exit 1
+          fi
+
+      - name: Emit policy decision artifact
+        env:
+          SKILL_DIGEST: ${{ inputs.skill_digest }}
+          POLICY_OUTCOME: ${{ inputs.policy_outcome }}
+          SUBMITTER: ${{ inputs.submitter }}
+          SECURITY_APPROVER: ${{ inputs.security_approver }}
+          RUNTIME_APPROVER: ${{ inputs.runtime_approver }}
+        run: |
+          mkdir -p .tmp/github-mode-skill-policy
+          cat > .tmp/github-mode-skill-policy/policy-decision.json <<'JSON'
+          {
+            "skillDigest": "__SKILL_DIGEST__",
+            "policyDecision": "__POLICY_OUTCOME__",
+            "submitter": "__SUBMITTER__",
+            "approvals": {
+              "securityApprover": "__SECURITY_APPROVER__",
+              "runtimeApprover": "__RUNTIME_APPROVER__"
+            }
+          }
+          JSON
+
+          sed -i "s|__SKILL_DIGEST__|${SKILL_DIGEST}|g" .tmp/github-mode-skill-policy/policy-decision.json
+          sed -i "s|__POLICY_OUTCOME__|${POLICY_OUTCOME}|g" .tmp/github-mode-skill-policy/policy-decision.json
+          sed -i "s|__SUBMITTER__|${SUBMITTER}|g" .tmp/github-mode-skill-policy/policy-decision.json
+          sed -i "s|__SECURITY_APPROVER__|${SECURITY_APPROVER}|g" .tmp/github-mode-skill-policy/policy-decision.json
+          sed -i "s|__RUNTIME_APPROVER__|${RUNTIME_APPROVER}|g" .tmp/github-mode-skill-policy/policy-decision.json
+
+      - name: Upload policy decision artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: quarantine-policy-decision-${{ github.run_id }}
+          path: .tmp/github-mode-skill-policy/policy-decision.json
+          if-no-files-found: error
+          retention-days: 90

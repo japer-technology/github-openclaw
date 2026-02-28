@@ -1,0 +1,14 @@
+name: Fixture Privileged Unguarded
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - name: Deploy
+        run: echo deploy

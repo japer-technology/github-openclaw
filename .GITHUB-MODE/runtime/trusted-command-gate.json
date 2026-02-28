@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "gateVersion": "v1.0.0",
+  "enforcementMode": "fail_closed",
+  "allowRuntimeFetch": false,
+  "trustedWorkflows": [
+    "github-mode-trusted-command.yml",
+    "github-mode-oidc-deploy-scaffold.yml",
+    "github-mode-command.yml",
+    "github-mode-agent-run.yml",
+    "github-mode-bot-pr.yml"
+  ],
+  "requiredMetadata": ["skillDigest", "approvalRecord", "scanArtifact", "policyArtifact"]
+}

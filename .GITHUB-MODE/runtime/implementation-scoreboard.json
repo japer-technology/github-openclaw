@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "capabilities": [
+    {
+      "id": "pr-contract-validation",
+      "description": "Required PR checks validate .GITHUB-MODE runtime contracts and trust-safe execution.",
+      "state": "operational",
+      "evidence": [".github/workflows/github-mode-contracts.yml"]
+    },
+    {
+      "id": "security-lint-enforcement",
+      "description": "Security lint blocks unpinned actions, broad permissions, and secret exposure in untrusted triggers.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/github-mode-security-lint.ts",
+        ".github/workflows/github-mode-security-lint.yml",
+        ".GITHUB-MODE/test/github-mode-security-lint.test.ts"
+      ]
+    },
+    {
+      "id": "environment-protection-gates",
+      "description": "GitHub Environments github-mode-dev/staging/prod enforce reviewer gates and branch restrictions.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/verify-github-environments.ts",
+        ".github/workflows/github-mode-security.yml"
+      ]
+    },
+    {
+      "id": "workflow-permission-hardening",
+      "description": "All GitHub-mode workflows declare explicit least-privilege permissions at workflow and job level.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/lint-github-mode-workflows.ts",
+        ".GITHUB-MODE/scripts/github-mode-security-lint.ts"
+      ]
+    },
+    {
+      "id": "oidc-credential-guard",
+      "description": "Static cloud credential patterns are blocked; OIDC federation is the required credential path.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/check-github-mode-oidc-credentials.ts",
+        ".github/workflows/github-mode-oidc-deploy-scaffold.yml"
+      ]
+    },
+    {
+      "id": "skill-quarantine-gate",
+      "description": "Trusted skill gate enforces fail-closed allowlist with revocation checking and approval metadata validation.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/enforce-trusted-skill-gate.ts",
+        ".GITHUB-MODE/test/enforce-trusted-skill-gate.test.ts",
+        ".github/workflows/github-mode-skill-intake.yml",
+        ".github/workflows/github-mode-skill-static-scan.yml",
+        ".github/workflows/github-mode-skill-policy-classifier.yml",
+        ".github/workflows/github-mode-skill-emergency-revocation.yml"
+      ]
+    },
+    {
+      "id": "phase3-ci-workflow-set",
+      "description": "Phase 3 core CI workflows (build, check, test, policy, route-sim, eval-tier0, cost, sync-templates) are implemented with deterministic artifacts and markdown summaries.",
+      "state": "operational",
+      "evidence": [
+        ".github/workflows/github-mode-build.yml",
+        ".github/workflows/github-mode-check.yml",
+        ".github/workflows/github-mode-test.yml",
+        ".github/workflows/github-mode-policy.yml",
+        ".github/workflows/github-mode-route-sim.yml",
+        ".github/workflows/github-mode-eval-tier0.yml",
+        ".github/workflows/github-mode-cost.yml",
+        ".github/workflows/github-mode-sync-templates.yml"
+      ]
+    },
+    {
+      "id": "phase3-policy-drift-detection",
+      "description": "Policy and route drift detection with remediation pointers, enforced in CI workflows.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/check-policy-drift.ts",
+        ".GITHUB-MODE/test/check-policy-drift.test.ts",
+        ".github/workflows/github-mode-policy.yml",
+        ".github/workflows/github-mode-route-sim.yml"
+      ]
+    },
+    {
+      "id": "phase3-eval-cost-threshold-gates",
+      "description": "Eval and cost threshold gates enforce versioned policy-governed limits that block promotion on failure.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/check-eval-thresholds.ts",
+        ".GITHUB-MODE/scripts/check-cost-thresholds.ts",
+        ".GITHUB-MODE/test/check-eval-thresholds.test.ts",
+        ".GITHUB-MODE/test/check-cost-thresholds.test.ts",
+        ".GITHUB-MODE/runtime/eval-thresholds.json",
+        ".GITHUB-MODE/runtime/cost-thresholds.json",
+        ".github/workflows/github-mode-eval-tier0.yml",
+        ".github/workflows/github-mode-cost.yml"
+      ]
+    },
+    {
+      "id": "phase3-template-drift-detection",
+      "description": "Template drift detection with migration guidance against a versioned baseline.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/check-template-drift.ts",
+        ".GITHUB-MODE/test/check-template-drift.test.ts",
+        ".GITHUB-MODE/runtime/template-baseline.json",
+        ".github/workflows/github-mode-sync-templates.yml"
+      ]
+    },
+    {
+      "id": "phase4-command-workflow-set",
+      "description": "Phase 4.1 command runtime workflows (command, agent-run, bot-pr) with fail-closed pre-agent gates in deterministic order.",
+      "state": "operational",
+      "evidence": [
+        ".github/workflows/github-mode-command.yml",
+        ".github/workflows/github-mode-agent-run.yml",
+        ".github/workflows/github-mode-bot-pr.yml",
+        ".GITHUB-MODE/scripts/run-pre-agent-gates.ts",
+        ".GITHUB-MODE/test/run-pre-agent-gates.test.ts"
+      ]
+    },
+    {
+      "id": "phase4-pre-agent-gate-enforcement",
+      "description": "Pre-agent gates enforce fail-closed skill-package-scan, lockfile-provenance, and policy-eval in deterministic order before agent execution.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/run-pre-agent-gates.ts",
+        ".GITHUB-MODE/test/run-pre-agent-gates.test.ts",
+        ".GITHUB-MODE/runtime/command-policy.json",
+        ".GITHUB-MODE/runtime/trusted-command-gate.json"
+      ]
+    },
+    {
+      "id": "trusted-command-bot-pr",
+      "description": "Trusted command workflow supports end-to-end command-to-agent-to-bot-pr sequencing for trusted users with explicit create-pr gating.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/docs/planning/mvp.md",
+        ".GITHUB-MODE/scripts/run-pre-agent-gates.ts",
+        ".github/workflows/github-mode-agent-run.yml",
+        ".github/workflows/github-mode-bot-pr.yml",
+        ".github/workflows/github-mode-command.yml"
+      ]
+    },
+    {
+      "id": "untrusted-privilege-blocking",
+      "description": "Untrusted actors are blocked from privileged adapters and secret-backed paths.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/enforce-trust-authorization.ts",
+        ".GITHUB-MODE/test/enforce-trust-authorization.test.ts",
+        ".GITHUB-MODE/runtime/trust-levels.json",
+        ".GITHUB-MODE/runtime/adapter-contracts.json",
+        ".GITHUB-MODE/runtime/command-policy.json",
+        ".github/workflows/github-mode-command.yml",
+        ".github/workflows/github-mode-agent-run.yml"
+      ]
+    },
+    {
+      "id": "phase4-policy-gated-adapter",
+      "description": "Policy-gated adapter invocation enforces command-policy checks before adapter execution with decision evidence persisted in artifacts.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/enforce-policy-gated-adapter.ts",
+        ".GITHUB-MODE/test/enforce-policy-gated-adapter.test.ts",
+        ".GITHUB-MODE/runtime/command-policy.json",
+        ".GITHUB-MODE/runtime/adapter-contracts.json",
+        ".GITHUB-MODE/runtime/adapter-contracts.schema.json",
+        ".github/workflows/github-mode-command.yml",
+        ".github/workflows/github-mode-agent-run.yml",
+        ".github/workflows/github-mode-bot-pr.yml"
+      ]
+    },
+    {
+      "id": "phase4-provenance-metadata-embedding",
+      "description": "Provenance metadata embedding validates source command, commit SHA, run ID, and policy version in all command outputs using a standardized machine-parseable schema. Missing provenance fails validation.",
+      "state": "operational",
+      "evidence": [
+        ".GITHUB-MODE/scripts/validate-provenance-metadata.ts",
+        ".GITHUB-MODE/test/validate-provenance-metadata.test.ts",
+        ".GITHUB-MODE/runtime/provenance-metadata.schema.json",
+        ".GITHUB-MODE/runtime/command-policy.json",
+        ".github/workflows/github-mode-command.yml",
+        ".github/workflows/github-mode-agent-run.yml"
+      ]
+    },
+    {
+      "id": "issue-thread-loop-mvp",
+      "description": "Issue and issue_comment conversational loop with reaction lifecycle and git-backed issue-to-session resume mapping is specified for Phase 4 implementation.",
+      "state": "spec-only",
+      "evidence": [
+        ".GITHUB-MODE/docs/design/gitclaw-a-simple-example.md",
+        ".GITHUB-MODE/docs/design/github-mode-issue-loop-mvp.md",
+        ".GITHUB-MODE/docs/planning/implementation-plan.md",
+        ".GITHUB-MODE/docs/planning/implementation-tasks.md"
+      ]
+    },
+    {
+      "id": "parity-snapshot-visibility",
+      "description": "Parity matrix artifacts are generated and visible to reviewers in CI summaries.",
+      "state": "scaffold",
+      "evidence": [".GITHUB-MODE/runtime/parity-matrix.json"]
+    },
+    {
+      "id": "installed-runtime-non-regression",
+      "description": "Installed runtime behavior remains unchanged while GitHub Mode evolves.",
+      "state": "scaffold",
+      "evidence": [".GITHUB-MODE/docs/adr/0002-installed-runtime-non-regression-guardrails.md"]
+    }
+  ]
+}

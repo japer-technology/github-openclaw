@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "manifestVersion": "v1.0.0",
+  "components": [
+    {
+      "id": "github-mode-runtime",
+      "version": "v1.0.0",
+      "owner": "@openclaw/runtime"
+    },
+    {
+      "id": "github-policy-engine",
+      "version": "v1.0.0",
+      "owner": "@openclaw/security"
+    }
+  ]
+}

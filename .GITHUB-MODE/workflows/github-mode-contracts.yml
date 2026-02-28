@@ -1,0 +1,82 @@
+name: GitHub Mode Contracts
+on:
+  pull_request:
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check-oidc-credentials:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-oidc-credentials.ts
+  lint-workflow-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - run: node --import tsx .GITHUB-MODE/scripts/lint-github-mode-workflows.ts
+
+  validate-contracts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - run: node --import tsx .GITHUB-MODE/scripts/validate-governance-approvals.ts
+      - run: pnpm contracts:github:validate
+      - run: node --import tsx .GITHUB-MODE/scripts/check-contract-compatibility.ts
+      - run: node --import tsx .GITHUB-MODE/scripts/validate-github-mode-package-list.ts
+      - run: node --import tsx .GITHUB-MODE/scripts/check-implementation-scoreboard.ts
+      - name: Generate parity report artifact
+        run: |
+          REPORT_PATH="${RUNNER_TEMP}/github-mode-parity-report.md"
+          node --import tsx .GITHUB-MODE/scripts/check-implementation-scoreboard.ts --report-file "$REPORT_PATH"
+          echo "GITHUB_MODE_PARITY_REPORT=$REPORT_PATH" >> "$GITHUB_ENV"
+      - name: Upload parity report artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-parity-report
+          path: ${{ env.GITHUB_MODE_PARITY_REPORT }}
+      - name: Publish implementation scoreboard summary
+        run: |
+          {
+            echo "## Implementation scoreboard"
+            node --import tsx .GITHUB-MODE/scripts/check-implementation-scoreboard.ts --summary
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  check-additions-only:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - run: node --import tsx .GITHUB-MODE/scripts/check-upstream-additions-only.ts

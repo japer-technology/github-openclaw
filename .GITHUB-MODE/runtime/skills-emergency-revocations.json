@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "revocationVersion": "v1.0.0",
+  "events": [
+    {
+      "revocationId": "rev-2026-02-18-skill-sample",
+      "skillDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "skillName": "sample-revoked-skill",
+      "status": "revoked",
+      "trigger": "provenance_mismatch",
+      "initiatedBy": "@openclaw/security-oncall",
+      "initiatedAt": "2026-02-18T00:00:00Z",
+      "actions": {
+        "invalidatedAllowlist": true,
+        "invalidatedCaches": true,
+        "emittedIncidentIssue": "https://github.com/japer-technology/gh-openclaw/issues/99999"
+      }
+    }
+  ]
+}

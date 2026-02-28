@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "trustVersion": "v1.0.0",
+  "levels": [
+    {
+      "id": "untrusted",
+      "description": "Fork pull requests and unknown actors; constrained read-only capabilities.",
+      "allowsSecrets": false,
+      "allowsPrivilegedMutation": false
+    },
+    {
+      "id": "semi-trusted",
+      "description": "Internal pull requests with moderate capabilities but no production mutation.",
+      "allowsSecrets": false,
+      "allowsPrivilegedMutation": false
+    },
+    {
+      "id": "trusted",
+      "description": "Maintainer-approved environments with privileged command and promotion paths.",
+      "allowsSecrets": true,
+      "allowsPrivilegedMutation": true
+    }
+  ]
+}

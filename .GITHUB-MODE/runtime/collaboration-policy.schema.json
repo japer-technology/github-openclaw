@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://openclaw.ai/schemas/runtime/github-mode/collaboration-policy.schema.json",
+  "title": "GitHub Mode Collaboration Policy",
+  "description": "Deny-by-default collaboration policy governing cross-entity exchanges in GitHub mode.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "policyVersion", "defaultAction", "allowedRoutes"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "policyVersion": {
+      "type": "string",
+      "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "defaultAction": {
+      "type": "string",
+      "enum": ["deny"],
+      "description": "Default action for unmatched collaboration requests. Must be deny."
+    },
+    "allowedRoutes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceEntity", "targetEntity", "intents"],
+        "properties": {
+          "sourceEntity": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Entity ID or wildcard pattern for the source."
+          },
+          "targetEntity": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Entity ID or wildcard pattern for the target."
+          },
+          "intents": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "description": "Allowed intent types for this route."
+          },
+          "requiredTrustTier": {
+            "type": "string",
+            "enum": ["untrusted", "semi-trusted", "trusted"],
+            "description": "Minimum trust tier required for this route."
+          }
+        }
+      },
+      "description": "Explicitly allowed collaboration routes. Only these routes can execute."
+    }
+  }
+}

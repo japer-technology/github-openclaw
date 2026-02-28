@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0",
+  "entityId": "openclaw-primary",
+  "owner": "@openclaw/runtime",
+  "description": "Primary OpenClaw entity for the japer-technology/gh-openclaw repository.",
+  "trustTier": "trusted",
+  "capabilities": ["validate", "command", "agent-run", "bot-pr", "promote"]
+}

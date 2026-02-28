@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://openclaw.ai/schemas/runtime/github-mode/collaboration-envelope.schema.json",
+  "title": "GitHub Mode Collaboration Envelope",
+  "description": "Schema for cross-entity collaboration message envelopes in GitHub mode.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "sourceEntityId",
+    "targetEntityId",
+    "intent",
+    "sourceCommitSha",
+    "sourceRunId",
+    "trustLevel",
+    "policyVersion",
+    "correlationId",
+    "createdAt",
+    "ttlSeconds"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "sourceEntityId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID of the entity sending the collaboration request."
+    },
+    "targetEntityId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID of the entity receiving the collaboration request."
+    },
+    "intent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Intent or command type for this collaboration message."
+    },
+    "sourceCommitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Full commit SHA from the source entity repository."
+    },
+    "sourceRunId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "GitHub Actions run ID that originated this envelope."
+    },
+    "trustLevel": {
+      "type": "string",
+      "enum": ["untrusted", "semi-trusted", "trusted"],
+      "description": "Trust level of the source context."
+    },
+    "policyVersion": {
+      "type": "string",
+      "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Version of the collaboration policy governing this envelope."
+    },
+    "correlationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Correlation ID for tracing this collaboration exchange."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when this envelope was created."
+    },
+    "ttlSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Time-to-live in seconds before this envelope expires."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Opaque payload for the collaboration intent."
+    }
+  }
+}

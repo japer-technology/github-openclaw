@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://openclaw.ai/schemas/runtime/github-mode/provenance-metadata.schema.json",
+  "title": "GitHub Mode Provenance Metadata",
+  "description": "Schema for provenance metadata embedded in all GitHub Mode command outputs and PR artifacts. Every command output must include these fields for auditability and traceability.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_command", "commit_sha", "run_id", "policy_version"],
+  "properties": {
+    "source_command": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The command that produced this output (e.g. explain, refactor, test, diagram)."
+    },
+    "commit_sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$",
+      "description": "Full 40-character Git commit SHA at the time of execution."
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "GitHub Actions workflow run ID that produced the output."
+    },
+    "policy_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Version of the command-policy.json that governed execution."
+    }
+  }
+}

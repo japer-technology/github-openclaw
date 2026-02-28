@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "thresholdsVersion": "v1.0.0",
+  "enforcementMode": "enforce",
+  "currency": "USD",
+  "gates": [
+    {
+      "id": "per-run-ceiling",
+      "description": "Maximum estimated cost for a single workflow run.",
+      "maxAmount": 5.0,
+      "blocksPromotion": true
+    },
+    {
+      "id": "daily-budget",
+      "description": "Maximum aggregate daily spend across all GitHub Mode runs.",
+      "maxAmount": 50.0,
+      "blocksPromotion": true
+    }
+  ]
+}

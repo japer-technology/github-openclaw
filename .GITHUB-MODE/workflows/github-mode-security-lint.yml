@@ -1,0 +1,27 @@
+name: GitHub Mode Security Lint
+
+on:
+  pull_request:
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-security-lint.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-security-lint.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - name: Run GitHub mode security lint
+        run: node --import tsx .GITHUB-MODE/scripts/github-mode-security-lint.ts

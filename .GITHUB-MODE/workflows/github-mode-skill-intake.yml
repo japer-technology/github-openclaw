@@ -1,0 +1,104 @@
+name: GitHub Mode Skill Intake
+
+on:
+  workflow_dispatch:
+    inputs:
+      skill_name:
+        description: Skill package or repository name
+        required: true
+        type: string
+      source_repo:
+        description: Immutable source repository URL
+        required: true
+        type: string
+      source_commit_sha:
+        description: Immutable source commit SHA
+        required: true
+        type: string
+      artifact_digest:
+        description: Immutable artifact digest (sha256:...)
+        required: true
+        type: string
+      maintainers:
+        description: Comma-separated maintainer handles
+        required: true
+        type: string
+      runtime_dependencies:
+        description: Comma-separated runtime dependencies
+        required: true
+        type: string
+      network_needs:
+        description: Declared network needs
+        required: true
+        type: string
+      intended_trust_tier:
+        description: Intended trust tier
+        required: true
+        type: choice
+        options:
+          - untrusted
+          - semi-trusted
+          - trusted
+
+permissions:
+  contents: read
+
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+
+      - name: Build pending intake record
+        env:
+          SKILL_NAME: ${{ inputs.skill_name }}
+          SOURCE_REPO: ${{ inputs.source_repo }}
+          SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+          ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+          MAINTAINERS: ${{ inputs.maintainers }}
+          RUNTIME_DEPENDENCIES: ${{ inputs.runtime_dependencies }}
+          NETWORK_NEEDS: ${{ inputs.network_needs }}
+          INTENDED_TRUST_TIER: ${{ inputs.intended_trust_tier }}
+          SUBMITTER: ${{ github.actor }}
+        run: |
+          mkdir -p .tmp/github-mode-skill-intake
+          cat > .tmp/github-mode-skill-intake/pending-submission.json <<'JSON'
+          {
+            "state": "pending_scan",
+            "skillName": "__SKILL_NAME__",
+            "submittedBy": "__SUBMITTER__",
+            "immutableSource": {
+              "repository": "__SOURCE_REPO__",
+              "commitSha": "__SOURCE_COMMIT_SHA__",
+              "artifactDigest": "__ARTIFACT_DIGEST__"
+            },
+            "maintainers": "__MAINTAINERS__",
+            "runtimeDependencies": "__RUNTIME_DEPENDENCIES__",
+            "networkNeeds": "__NETWORK_NEEDS__",
+            "intendedTrustTier": "__INTENDED_TRUST_TIER__"
+          }
+          JSON
+
+          sed -i "s|__SKILL_NAME__|${SKILL_NAME}|g" .tmp/github-mode-skill-intake/pending-submission.json
+          sed -i "s|__SUBMITTER__|${SUBMITTER}|g" .tmp/github-mode-skill-intake/pending-submission.json
+          sed -i "s|__SOURCE_REPO__|${SOURCE_REPO}|g" .tmp/github-mode-skill-intake/pending-submission.json
+          sed -i "s|__SOURCE_COMMIT_SHA__|${SOURCE_COMMIT_SHA}|g" .tmp/github-mode-skill-intake/pending-submission.json
+          sed -i "s|__ARTIFACT_DIGEST__|${ARTIFACT_DIGEST}|g" .tmp/github-mode-skill-intake/pending-submission.json
+          sed -i "s|__MAINTAINERS__|${MAINTAINERS}|g" .tmp/github-mode-skill-intake/pending-submission.json
+          sed -i "s|__RUNTIME_DEPENDENCIES__|${RUNTIME_DEPENDENCIES}|g" .tmp/github-mode-skill-intake/pending-submission.json
+          sed -i "s|__NETWORK_NEEDS__|${NETWORK_NEEDS}|g" .tmp/github-mode-skill-intake/pending-submission.json
+          sed -i "s|__INTENDED_TRUST_TIER__|${INTENDED_TRUST_TIER}|g" .tmp/github-mode-skill-intake/pending-submission.json
+
+      - name: Upload pending intake artifact (immutable evidence input)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: quarantine-intake-${{ github.run_id }}
+          path: .tmp/github-mode-skill-intake/pending-submission.json
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "baselineVersion": "v1.0.0",
+  "requiredFiles": [
+    ".GITHUB-MODE/ACTIVE.md",
+    ".GITHUB-MODE/runtime/runtime-manifest.json",
+    ".GITHUB-MODE/runtime/adapter-contracts.json",
+    ".GITHUB-MODE/runtime/command-policy.json",
+    ".GITHUB-MODE/runtime/trust-levels.json",
+    ".GITHUB-MODE/runtime/parity-matrix.json",
+    ".GITHUB-MODE/runtime/workspace-convergence-map.json",
+    ".GITHUB-MODE/runtime/entity-manifest.json",
+    ".GITHUB-MODE/runtime/collaboration-policy.json",
+    ".GITHUB-MODE/runtime/eval-thresholds.json",
+    ".GITHUB-MODE/runtime/cost-thresholds.json"
+  ],
+  "requiredWorkflows": [
+    "github-mode-ci-scaffold.yml",
+    "github-mode-contracts.yml",
+    "github-mode-security.yml",
+    "github-mode-security-lint.yml",
+    "github-mode-build.yml",
+    "github-mode-check.yml",
+    "github-mode-test.yml",
+    "github-mode-policy.yml"
+  ],
+  "requiredLabels": ["github-mode"]
+}

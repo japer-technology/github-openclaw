@@ -1,0 +1,244 @@
+name: GitHub Mode Command
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "Command to execute (explain, refactor, test, diagram)"
+        required: true
+        type: choice
+        options:
+          - explain
+          - refactor
+          - test
+          - diagram
+      target:
+        description: "Target file or path for the command"
+        required: true
+        type: string
+      open_bot_pr:
+        description: "Run bot PR workflow after agent execution"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  pre-agent-gates:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      gates_passed: ${{ steps.gates.outputs.passed }}
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+
+      - name: Run pre-agent gates (fail-closed)
+        id: gates
+        env:
+          GITHUB_MODE_COMMAND: ${{ inputs.command }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/github-mode-command"
+          if node --import tsx .GITHUB-MODE/scripts/run-pre-agent-gates.ts \
+            --json-out "$RUNNER_TEMP/github-mode-command/gate-records.json" \
+            --summary-out "$RUNNER_TEMP/github-mode-command/gate-summary.md" \
+            | tee "$RUNNER_TEMP/github-mode-command/gates-output.txt"; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Pre-agent gates failed. Agent execution blocked."
+            exit 1
+          fi
+
+      - name: Publish pre-agent gate records
+        if: always()
+        run: |
+          {
+            echo ""
+            echo "### Pre-agent gate records"
+            jq -r '.gates[] | "- gate=\(.gate) result=\(.result) reason=\(.reason) evidence=\(.evidence)"' \
+              "$RUNNER_TEMP/github-mode-command/gate-records.json"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Emit gate evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-command"
+          cat > "$RUNNER_TEMP/github-mode-command/evidence.json" <<EOF
+          {
+            "workflow": "github-mode-command",
+            "command": "${{ inputs.command }}",
+            "target": "${{ inputs.target }}",
+            "gates_passed": "${{ steps.gates.outputs.passed }}",
+            "result": "${{ steps.gates.outputs.passed == 'true' && 'pass' || 'fail' }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}",
+            "actor": "${{ github.actor }}"
+          }
+          EOF
+
+      - name: Publish command summary
+        if: always()
+        run: |
+          {
+            echo "## GitHub Mode Command"
+            echo ""
+            echo "- Command: \`${{ inputs.command }}\`"
+            echo "- Target: \`${{ inputs.target }}\`"
+            echo "- Actor: \`${{ github.actor }}\`"
+            echo "- Gates: ${{ steps.gates.outputs.passed == 'true' && '✅ Passed' || '❌ Failed' }}"
+            echo "- Run ID: \`${{ github.run_id }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload command evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-command-evidence
+          path: ${{ runner.temp }}/github-mode-command/
+          retention-days: 90
+
+  dispatch-agent:
+    needs: pre-agent-gates
+    if: needs.pre-agent-gates.outputs.gates_passed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+
+      - name: Build openclaw runtime from source
+        run: pnpm build
+
+      - name: Enforce trust-aware authorization (Task 4.2)
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_MODE_TRUST_LEVEL: ${{ github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork && 'untrusted' || 'semi-trusted') || 'trusted' }}
+          GITHUB_MODE_ADAPTER: repo-write
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/github-mode-command-auth"
+          node --import tsx .GITHUB-MODE/scripts/enforce-trust-authorization.ts \
+            --json-out "$RUNNER_TEMP/github-mode-command-auth/authorization-decision.json" \
+            --summary-out "$RUNNER_TEMP/github-mode-command-auth/authorization-summary.md"
+
+      - name: Upload trust authorization evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-command-authorization-evidence
+          path: ${{ runner.temp }}/github-mode-command-auth/
+          retention-days: 90
+
+      - name: Enforce policy-gated adapter invocation (Task 4.3)
+        env:
+          GITHUB_MODE_ADAPTER: repo-write
+          GITHUB_MODE_ACTION: open-pr
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/github-mode-command-policy-gate"
+          node --import tsx .GITHUB-MODE/scripts/enforce-policy-gated-adapter.ts \
+            --json-out "$RUNNER_TEMP/github-mode-command-policy-gate/policy-decision.json" \
+            --summary-out "$RUNNER_TEMP/github-mode-command-policy-gate/policy-summary.md"
+
+      - name: Upload policy-gated adapter evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-command-policy-gate-evidence
+          path: ${{ runner.temp }}/github-mode-command-policy-gate/
+          retention-days: 90
+
+      - name: Validate provenance metadata (Task 4.4)
+        env:
+          GITHUB_MODE_COMMAND: ${{ inputs.command }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/github-mode-command-provenance"
+          node --import tsx .GITHUB-MODE/scripts/validate-provenance-metadata.ts \
+            --json-out "$RUNNER_TEMP/github-mode-command-provenance/provenance-validation.json" \
+            --summary-out "$RUNNER_TEMP/github-mode-command-provenance/provenance-summary.md"
+
+      - name: Upload provenance validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-command-provenance-evidence
+          path: ${{ runner.temp }}/github-mode-command-provenance/
+          retention-days: 90
+
+      - name: Execute command via openclaw agent engine
+        env:
+          GITHUB_MODE_COMMAND: ${{ inputs.command }}
+          GITHUB_MODE_TARGET: ${{ inputs.target }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          echo "Executing: $GITHUB_MODE_COMMAND on $GITHUB_MODE_TARGET via openclaw agent engine"
+          node openclaw.mjs agent \
+            --agent main \
+            --message "$GITHUB_MODE_COMMAND $GITHUB_MODE_TARGET" \
+            --local \
+            --json
+
+      - name: Emit dispatch evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-command-dispatch"
+          cat > "$RUNNER_TEMP/github-mode-command-dispatch/evidence.json" <<EOF
+          {
+            "workflow": "github-mode-command",
+            "phase": "dispatch",
+            "command": "${{ inputs.command }}",
+            "target": "${{ inputs.target }}",
+            "result": "pass",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}",
+            "provenance": {
+              "source_command": "${{ inputs.command }}",
+              "commit_sha": "${{ github.sha }}",
+              "run_id": "${{ github.run_id }}",
+              "policy_version": "v1.0.0"
+            }
+          }
+          EOF
+      - name: Upload dispatch evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-command-dispatch-evidence
+          path: ${{ runner.temp }}/github-mode-command-dispatch/evidence.json
+          retention-days: 90
+
+  bot-pr:
+    needs:
+      - pre-agent-gates
+      - dispatch-agent
+    if: needs.pre-agent-gates.outputs.gates_passed == 'true' && inputs.open_bot_pr
+    uses: ./.github/workflows/github-mode-bot-pr.yml
+    permissions:
+      contents: read
+      pull-requests: read
+    with:
+      command: ${{ inputs.command }}
+      branch_name: github-mode-bot/${{ github.run_id }}-${{ inputs.command }}
+      pr_title: "GitHub Mode: ${{ inputs.command }} ${{ inputs.target }}"
+      pr_body: |
+        Automated PR created by GitHub Mode command workflow.
+
+        - command: `${{ inputs.command }}`
+        - target: `${{ inputs.target }}`
+        - source run: `${{ github.run_id }}`
+      source_run_id: ${{ github.run_id }}
+      create_pull_request: true

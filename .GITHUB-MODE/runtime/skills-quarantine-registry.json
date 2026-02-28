@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0",
+  "registryVersion": "v1.0.0",
+  "classifierOutcomes": ["approved_limited", "approved_trusted", "rejected_policy"],
+  "submissions": [
+    {
+      "submissionId": "skill-gh-actions-linter-2026-02-18",
+      "skillName": "gh-actions-linter",
+      "state": "pending_scan",
+      "submittedBy": "@openclaw/automation",
+      "submittedAt": "2026-02-18T00:00:00Z",
+      "immutableSource": {
+        "repository": "https://github.com/openclaw/skills",
+        "commitSha": "1111111111111111111111111111111111111111",
+        "artifactDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "maintainers": ["@openclaw/runtime"],
+      "runtimeDependencies": ["node@22", "ripgrep"],
+      "networkNeeds": "none",
+      "intendedTrustTier": "trusted"
+    },
+    {
+      "submissionId": "skill-safe-markdown-2026-02-17",
+      "skillName": "safe-markdown",
+      "state": "approved_trusted",
+      "submittedBy": "@openclaw/automation",
+      "submittedAt": "2026-02-17T00:00:00Z",
+      "immutableSource": {
+        "repository": "https://github.com/openclaw/skills",
+        "commitSha": "2222222222222222222222222222222222222222",
+        "artifactDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "maintainers": ["@openclaw/security", "@openclaw/runtime"],
+      "runtimeDependencies": ["node@22"],
+      "networkNeeds": "github-api-only",
+      "intendedTrustTier": "trusted",
+      "scanEvidence": {
+        "artifactName": "skill-safe-markdown-scan-evidence",
+        "artifactDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "reportUri": "artifact://skill-safe-markdown/scan-report.json"
+      },
+      "policyDecision": "approved_trusted",
+      "approvalRecord": {
+        "securityApprover": "@openclaw/security-lead",
+        "runtimeApprover": "@openclaw/runtime-owner",
+        "approvedAt": "2026-02-17T08:00:00Z"
+      }
+    }
+  ]
+}

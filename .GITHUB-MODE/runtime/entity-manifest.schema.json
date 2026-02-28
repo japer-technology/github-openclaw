@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://openclaw.ai/schemas/runtime/github-mode/entity-manifest.schema.json",
+  "title": "GitHub Mode Entity Manifest",
+  "description": "Defines an OpenClaw entity for multi-entity collaboration in GitHub mode.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "entityId", "owner", "trustTier"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "entityId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 2,
+      "description": "Unique identifier for this entity within the organization."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Team or individual responsible for this entity."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this entity purpose."
+    },
+    "trustTier": {
+      "type": "string",
+      "enum": ["untrusted", "semi-trusted", "trusted"],
+      "description": "Default trust tier for this entity in collaboration contexts."
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Declared capabilities this entity can provide to collaborators."
+    }
+  }
+}

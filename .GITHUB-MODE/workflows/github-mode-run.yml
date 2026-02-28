@@ -1,0 +1,95 @@
+name: GitHub Mode Run
+
+# General-purpose workflow to run OpenClaw CLI commands directly in GitHub
+# Actions without compiling, downloading, or installing locally.
+# The workflow builds the runtime from source and executes the requested
+# command, emitting structured evidence artifacts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "OpenClaw CLI subcommand (e.g. agent, message send, config get)"
+        required: true
+        type: string
+      args:
+        description: "Arguments to pass after the subcommand"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+
+      - name: Build openclaw runtime from source
+        run: pnpm build
+
+      - name: Run openclaw CLI
+        env:
+          OPENCLAW_CMD: ${{ inputs.command }}
+          OPENCLAW_ARGS: ${{ inputs.args }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          echo "Running: openclaw ${OPENCLAW_CMD} ${OPENCLAW_ARGS}"
+          node openclaw.mjs "${OPENCLAW_CMD}" ${OPENCLAW_ARGS}
+
+      - name: Emit run evidence
+        if: always()
+        env:
+          OPENCLAW_CMD: ${{ inputs.command }}
+          OPENCLAW_ARGS: ${{ inputs.args }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-run"
+          jq -n \
+            --arg cmd "$OPENCLAW_CMD" \
+            --arg args "$OPENCLAW_ARGS" \
+            --arg result "${{ job.status }}" \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg actor "${{ github.actor }}" \
+            '{
+              workflow: "github-mode-run",
+              command: $cmd,
+              args: $args,
+              result: $result,
+              timestamp: $ts,
+              run_id: $run_id,
+              sha: $sha,
+              actor: $actor
+            }' > "$RUNNER_TEMP/github-mode-run/evidence.json"
+
+      - name: Publish run summary
+        if: always()
+        run: |
+          {
+            echo "## GitHub Mode Run"
+            echo ""
+            echo "- Command: \`${{ inputs.command }} ${{ inputs.args }}\`"
+            echo "- Actor: \`${{ github.actor }}\`"
+            echo "- Status: \`${{ job.status }}\`"
+            echo "- Run ID: \`${{ github.run_id }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload run evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-run-evidence
+          path: ${{ runner.temp }}/github-mode-run/evidence.json
+          retention-days: 90

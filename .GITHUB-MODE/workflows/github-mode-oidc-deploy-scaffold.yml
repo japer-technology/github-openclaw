@@ -1,0 +1,74 @@
+name: GitHub Mode OIDC Deploy Scaffold
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - name: Build artifact
+        run: pnpm build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment: github-mode-${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - name: Verify no static cloud credentials
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-oidc-credentials.ts
+      - name: Request OIDC token
+        id: oidc
+        run: |
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          if [ -z "$OIDC_TOKEN" ] || [ "$OIDC_TOKEN" = "null" ]; then
+            echo "::error::OIDC token exchange failed"
+            exit 1
+          fi
+          echo "::add-mask::$OIDC_TOKEN"
+          echo "token_exchanged=true" >> "$GITHUB_OUTPUT"
+      - name: Emit deploy evidence
+        run: |
+          cat <<EOF > /tmp/oidc-deploy-evidence.json
+          {
+            "environment": "github-mode-${{ inputs.environment }}",
+            "token_exchange": "${{ steps.oidc.outputs.token_exchanged }}",
+            "deploy_result": "pending_cloud_integration",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "actor": "${{ github.actor }}"
+          }
+          EOF
+          cat /tmp/oidc-deploy-evidence.json
+      - name: Upload deploy evidence
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        with:
+          name: oidc-deploy-evidence-${{ inputs.environment }}
+          path: /tmp/oidc-deploy-evidence.json
+          retention-days: 90

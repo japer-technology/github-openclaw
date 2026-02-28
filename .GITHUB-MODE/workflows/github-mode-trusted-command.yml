@@ -1,0 +1,37 @@
+name: GitHub Mode Trusted Command
+
+on:
+  workflow_dispatch:
+    inputs:
+      skill_digest:
+        description: Immutable skill digest that must be trusted
+        required: true
+        type: string
+      command:
+        description: Trusted command to execute after gate
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  trusted-command:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+
+      - name: Fail-closed trusted skill gate
+        env:
+          SKILL_DIGEST: ${{ inputs.skill_digest }}
+        run: node --import tsx .GITHUB-MODE/scripts/enforce-trusted-skill-gate.ts
+
+      - name: Execute trusted command (after gate)
+        run: |
+          echo "Trusted command approved by fail-closed gate"
+          echo "${{ inputs.command }}"

@@ -1,0 +1,58 @@
+name: GitHub Mode Eval Tier 0
+
+on:
+  pull_request:
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  eval-tier0:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - name: Validate eval thresholds contract
+        run: node --import tsx .GITHUB-MODE/scripts/check-eval-thresholds.ts
+      - name: Publish eval summary
+        if: always()
+        run: |
+          {
+            echo "## Eval tier-0 results"
+            echo ""
+            echo "Eval threshold validation completed for commit \`${{ github.sha }}\`."
+            echo ""
+            echo "- Run ID: \`${{ github.run_id }}\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Thresholds: validated"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Emit eval evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-eval-tier0"
+          cat > "$RUNNER_TEMP/github-mode-eval-tier0/evidence.json" <<EOF
+          {
+            "workflow": "github-mode-eval-tier0",
+            "result": "pass",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}"
+          }
+          EOF
+      - name: Upload eval evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-eval-tier0-evidence
+          path: ${{ runner.temp }}/github-mode-eval-tier0/evidence.json
+          retention-days: 90

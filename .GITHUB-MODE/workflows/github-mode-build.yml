@@ -1,0 +1,46 @@
+name: GitHub Mode Build
+
+on:
+  pull_request:
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - name: Build
+        run: pnpm build
+      - name: Emit build evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-build"
+          cat > "$RUNNER_TEMP/github-mode-build/evidence.json" <<EOF
+          {
+            "workflow": "github-mode-build",
+            "result": "pass",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}"
+          }
+          EOF
+      - name: Upload build evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-build-evidence
+          path: ${{ runner.temp }}/github-mode-build/evidence.json
+          retention-days: 90

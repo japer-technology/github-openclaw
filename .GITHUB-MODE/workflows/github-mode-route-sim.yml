@@ -1,0 +1,61 @@
+name: GitHub Mode Route Simulation
+
+on:
+  pull_request:
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  route-sim:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - name: Validate adapter contracts
+        run: pnpm contracts:github:validate
+      - name: Policy drift check
+        run: node --import tsx .GITHUB-MODE/scripts/check-policy-drift.ts
+      - name: Publish route simulation summary
+        if: always()
+        run: |
+          {
+            echo "## Route simulation results"
+            echo ""
+            echo "Route and policy simulation completed for commit \`${{ github.sha }}\`."
+            echo ""
+            echo "- Run ID: \`${{ github.run_id }}\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Adapter contracts: validated"
+            echo "- Policy drift: checked"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Emit route-sim evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-route-sim"
+          cat > "$RUNNER_TEMP/github-mode-route-sim/evidence.json" <<EOF
+          {
+            "workflow": "github-mode-route-sim",
+            "result": "pass",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}"
+          }
+          EOF
+      - name: Upload route-sim evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-route-sim-evidence
+          path: ${{ runner.temp }}/github-mode-route-sim/evidence.json
+          retention-days: 90

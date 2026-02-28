@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "thresholdsVersion": "v1.0.0",
+  "enforcementMode": "enforce",
+  "tiers": [
+    {
+      "id": "tier0",
+      "description": "Baseline quality gate for all evaluated subsystems.",
+      "minScore": 0.7,
+      "maxRegressionDelta": 0.05,
+      "blocksPromotion": true
+    }
+  ],
+  "subsystems": [
+    {
+      "id": "policy-validation",
+      "tier": "tier0",
+      "metric": "pass_rate",
+      "baseline": 1.0
+    },
+    {
+      "id": "route-simulation",
+      "tier": "tier0",
+      "metric": "match_rate",
+      "baseline": 0.95
+    }
+  ]
+}

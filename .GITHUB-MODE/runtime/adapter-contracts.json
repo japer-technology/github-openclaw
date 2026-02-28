@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "contractsVersion": "v1.0.0",
+  "adapters": [
+    {
+      "name": "repo-write",
+      "capability": "Creates branches and pull requests through policy-gated workflows.",
+      "trustLevels": ["trusted"],
+      "constraints": [
+        "No direct writes to protected branches.",
+        "All mutations must flow through pull-request automation."
+      ]
+    },
+    {
+      "name": "policy-sim",
+      "capability": "Runs deterministic route and policy simulation for validation artifacts.",
+      "trustLevels": ["untrusted", "semi-trusted", "trusted"],
+      "constraints": [
+        "Read-only execution in untrusted contexts.",
+        "No secret material in simulation inputs or outputs."
+      ]
+    }
+  ]
+}

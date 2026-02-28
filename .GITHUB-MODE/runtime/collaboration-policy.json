@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "1.0",
+  "policyVersion": "v1.0.0",
+  "defaultAction": "deny",
+  "allowedRoutes": []
+}

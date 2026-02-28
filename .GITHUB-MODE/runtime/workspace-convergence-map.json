@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0",
+  "convergenceVersion": "v1.1.0",
+  "acceptanceCriteria": [
+    "All required contract artifacts exist under .GITHUB-MODE/runtime/.",
+    "Contract validator passes locally and in CI.",
+    "Parity matrix includes owner+rationale for each installed-only mapping.",
+    "Entity manifest schema and instance files exist and validate.",
+    "Collaboration policy schema and instance files exist and validate.",
+    "Collaboration envelope schema exists and validates.",
+    "Parity matrix covers all planned workflow classes from the implementation plan.",
+    "Contract versioning and compatibility policy is documented."
+  ],
+  "requiredHighValueWorkflows": [
+    "build-and-test",
+    "policy-validation",
+    "route-simulation",
+    "eval-tier0",
+    "cost-check",
+    "command",
+    "agent-run",
+    "bot-pr",
+    "drift-detection",
+    "promote-dev",
+    "promote-staging",
+    "promote-prod",
+    "incident-response"
+  ],
+  "reconciliationSignals": [
+    {
+      "signal": "contract-validation-pass",
+      "source": "pnpm contracts:github:validate",
+      "required": true
+    },
+    {
+      "signal": "ci-required-check-green",
+      "source": "CI / check",
+      "required": true
+    },
+    {
+      "signal": "entity-schema-validation-pass",
+      "source": "pnpm contracts:github:validate (entity-manifest validation)",
+      "required": true
+    },
+    {
+      "signal": "collaboration-schema-validation-pass",
+      "source": "pnpm contracts:github:validate (collaboration-policy validation)",
+      "required": true
+    }
+  ]
+}

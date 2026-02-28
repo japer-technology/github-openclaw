@@ -1,0 +1,159 @@
+name: GitHub Mode Skill Emergency Revocation
+
+on:
+  workflow_dispatch:
+    inputs:
+      skill_digest:
+        description: Digest to revoke immediately
+        required: true
+        type: string
+      reason:
+        description: Revocation trigger and rationale
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  revoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+
+      - name: Revoke digest from trusted allowlist
+        env:
+          SKILL_DIGEST: ${{ inputs.skill_digest }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          ALLOWLIST=".GITHUB-MODE/runtime/trusted-skills-allowlist.json"
+          REVOCATIONS=".GITHUB-MODE/runtime/skills-emergency-revocations.json"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          ACTOR="${{ github.actor }}"
+          RUN_ID="${{ github.run_id }}"
+
+          # Add digest to revokedDigests in allowlist if not already present
+          python3 -c "
+          import json, sys
+          with open('${ALLOWLIST}') as f:
+              data = json.load(f)
+          digest = '${SKILL_DIGEST}'
+          if digest not in data.get('revokedDigests', []):
+              data.setdefault('revokedDigests', []).append(digest)
+          # Remove from byDigest if present
+          by_digest = data.get('byDigest', {})
+          if digest in by_digest:
+              by_digest[digest]['status'] = 'revoked'
+          with open('${ALLOWLIST}', 'w') as f:
+              json.dump(data, f, indent=2)
+              f.write('\n')
+          "
+
+          # Append revocation event to emergency revocations log
+          python3 -c "
+          import json
+          with open('${REVOCATIONS}') as f:
+              data = json.load(f)
+          data.setdefault('events', []).append({
+              'revocationId': 'rev-${TIMESTAMP}-${SKILL_DIGEST}'.replace(':', '-')[:64],
+              'skillDigest': '${SKILL_DIGEST}',
+              'status': 'revoked',
+              'trigger': '${REASON}',
+              'initiatedBy': '@${ACTOR}',
+              'initiatedAt': '${TIMESTAMP}',
+              'actions': {
+                  'invalidatedAllowlist': True,
+                  'invalidatedCaches': True,
+                  'emittedIncidentIssue': 'pending'
+              }
+          })
+          with open('${REVOCATIONS}', 'w') as f:
+              json.dump(data, f, indent=2)
+              f.write('\n')
+          "
+
+      - name: Create revocation branch and PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKILL_DIGEST: ${{ inputs.skill_digest }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          BRANCH="github-mode/emergency-revocation-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${BRANCH}"
+          git add .GITHUB-MODE/runtime/trusted-skills-allowlist.json
+          git add .GITHUB-MODE/runtime/skills-emergency-revocations.json
+          git commit -m "security: emergency revocation of ${SKILL_DIGEST}"
+          git push origin "${BRANCH}"
+
+          cat > /tmp/github-mode-revocation-pr.md <<EOF_BODY
+          ## Emergency skill revocation
+
+          - **Digest:** \`${SKILL_DIGEST}\`
+          - **Trigger:** ${REASON}
+          - **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ### Changes
+
+          - Added digest to \`revokedDigests\` in \`trusted-skills-allowlist.json\`
+          - Updated status to \`revoked\` in allowlist entry (if present)
+          - Appended revocation event to \`skills-emergency-revocations.json\`
+
+          ### Required follow-up
+
+          - Merge this PR immediately to apply revocation
+          - Verify fail-closed gate blocks the revoked skill
+          - Perform re-intake with immutable provenance evidence if reinstatement is needed
+          EOF_BODY
+
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --head "${BRANCH}" \
+            --base main \
+            --title "[Security] Emergency revocation for ${SKILL_DIGEST}" \
+            --body-file /tmp/github-mode-revocation-pr.md
+
+      - name: Emit incident issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKILL_DIGEST: ${{ inputs.skill_digest }}
+          REASON: ${{ inputs.reason }}
+          REPO: ${{ github.repository }}
+        run: |
+          cat > /tmp/github-mode-revocation-issue.md <<EOF_BODY
+          ## GitHub Mode emergency skill revocation
+
+          - **Digest:** \`${SKILL_DIGEST}\`
+          - **Trigger:** ${REASON}
+          - **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ### Actions taken
+
+          - Removed from trusted allowlist (revocation PR created)
+          - Invalidated runner caches
+          - Blocked runtime activation by fail-closed gate
+
+          ### Required follow-up
+
+          - Merge the revocation PR
+          - Perform re-intake with immutable provenance evidence
+          - Re-run static scan and policy evaluation
+          - Re-approve using distinct security + runtime owners
+          EOF_BODY
+
+          gh issue create \
+            --repo "${REPO}" \
+            --title "[Incident] Emergency revocation for ${SKILL_DIGEST}" \
+            --body-file /tmp/github-mode-revocation-issue.md

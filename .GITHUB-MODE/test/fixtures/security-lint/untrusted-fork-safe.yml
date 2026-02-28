@@ -1,0 +1,21 @@
+name: Fixture Safe
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - name: Publish comment
+        if: github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork
+        uses: marocchino/sticky-pull-request-comment@7f5e068f8cc4ff95e05754f7d3299eb23a647884
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          message: safe

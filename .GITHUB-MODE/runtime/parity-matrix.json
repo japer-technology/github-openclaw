@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "1.0",
+  "matrixVersion": "v1.2.0",
+  "note": "v1.2.0: Updated to reflect fork-context src execution (ADR 0001 amendment). Workflows that build and run the openclaw runtime from src/ are marked as native or src-backed adapter.",
+  "mappings": [
+    {
+      "workflow": "build-and-test",
+      "installedRuntime": "pnpm check && pnpm test",
+      "githubMode": "ci.yml checks + test matrix",
+      "parity": "native"
+    },
+    {
+      "workflow": "policy-validation",
+      "installedRuntime": "local contract validation script",
+      "githubMode": "required CI contract validation step",
+      "parity": "native"
+    },
+    {
+      "workflow": "route-simulation",
+      "installedRuntime": "local route and policy evaluation",
+      "githubMode": "github-mode-route-sim.yml — builds from src/, runs src/routing/ for route resolution",
+      "parity": "native",
+      "srcModules": ["src/routing/", "src/config/"]
+    },
+    {
+      "workflow": "eval-tier0",
+      "installedRuntime": "local eval harness with datasets",
+      "githubMode": "github-mode-eval-tier0.yml — builds from src/, runs eval with src/agents/ and src/providers/",
+      "parity": "adapter",
+      "srcModules": ["src/agents/", "src/providers/", "src/auto-reply/"]
+    },
+    {
+      "workflow": "cost-check",
+      "installedRuntime": "local cost threshold checks",
+      "githubMode": "github-mode-cost.yml",
+      "parity": "native"
+    },
+    {
+      "workflow": "command",
+      "installedRuntime": "interactive CLI command execution",
+      "githubMode": "github-mode-command.yml — builds from src/, runs the openclaw agent engine for command execution",
+      "parity": "native",
+      "srcModules": ["src/agents/", "src/auto-reply/", "src/routing/", "src/providers/", "src/memory/", "src/config/"]
+    },
+    {
+      "workflow": "agent-run",
+      "installedRuntime": "local agent orchestration via pi-embedded-runner",
+      "githubMode": "github-mode-agent-run.yml — builds from src/, runs src/agents/pi-embedded-runner with pre-agent gates",
+      "parity": "native",
+      "srcModules": ["src/agents/", "src/auto-reply/", "src/routing/", "src/providers/", "src/memory/", "src/sessions/", "src/security/"]
+    },
+    {
+      "workflow": "bot-pr",
+      "installedRuntime": "not applicable in local mode",
+      "githubMode": "github-mode-bot-pr.yml generates PRs from agent output",
+      "parity": "native"
+    },
+    {
+      "workflow": "drift-detection",
+      "installedRuntime": "manual review of policy and routing changes",
+      "githubMode": "github-mode-drift.yml with automated detection",
+      "parity": "native"
+    },
+    {
+      "workflow": "promote-dev",
+      "installedRuntime": "manual promotion to development environment",
+      "githubMode": "github-mode-promote-dev.yml with attestation",
+      "parity": "adapter"
+    },
+    {
+      "workflow": "promote-staging",
+      "installedRuntime": "manual promotion to staging environment",
+      "githubMode": "github-mode-promote-staging.yml with attestation",
+      "parity": "adapter"
+    },
+    {
+      "workflow": "promote-prod",
+      "installedRuntime": "manual promotion to production environment",
+      "githubMode": "github-mode-promote-prod.yml with attestation",
+      "parity": "adapter"
+    },
+    {
+      "workflow": "incident-response",
+      "installedRuntime": "manual incident investigation and evidence collection",
+      "githubMode": "github-mode-incident.yml with evidence-linked issue creation",
+      "parity": "adapter"
+    },
+    {
+      "workflow": "template-sync",
+      "installedRuntime": "not applicable in local mode",
+      "githubMode": "github-mode-sync-templates.yml with drift detection",
+      "parity": "native"
+    },
+    {
+      "workflow": "entity-bootstrap",
+      "installedRuntime": "not applicable in local mode",
+      "githubMode": "github-mode-bootstrap-entity.yml for new entity scaffolding",
+      "parity": "native"
+    },
+    {
+      "workflow": "collab-dispatch",
+      "installedRuntime": "not applicable in local mode",
+      "githubMode": "github-mode-collab-dispatch.yml with envelope validation",
+      "parity": "native"
+    },
+    {
+      "workflow": "collab-receive",
+      "installedRuntime": "not applicable in local mode",
+      "githubMode": "github-mode-collab-receive.yml with policy enforcement",
+      "parity": "native"
+    },
+    {
+      "workflow": "release-publish",
+      "installedRuntime": "manual maintainer release flow",
+      "githubMode": "not-in-scope",
+      "parity": "installed-only",
+      "owner": "@openclaw/release",
+      "rationale": "GitHub mode rollout intentionally excludes automated release publishing in Task 1 scope."
+    },
+    {
+      "workflow": "channel-sessions",
+      "installedRuntime": "persistent channel connections via gateway",
+      "githubMode": "not applicable in ephemeral runner context",
+      "parity": "installed-only",
+      "owner": "@openclaw/runtime",
+      "rationale": "Persistent channel sessions require long-lived gateway processes incompatible with ephemeral GitHub Actions runners."
+    },
+    {
+      "workflow": "device-actions",
+      "installedRuntime": "local hardware interactions (camera, mic, screen, system)",
+      "githubMode": "not applicable in headless runner context",
+      "parity": "installed-only",
+      "owner": "@openclaw/runtime",
+      "rationale": "Device-coupled operations require local hardware access unavailable in GitHub Actions runners."
+    }
+  ]
+}

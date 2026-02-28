@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "allowlistVersion": "v1.0.0",
+  "keyType": "sha256",
+  "byDigest": {
+    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+      "skillName": "safe-markdown",
+      "status": "approved_trusted",
+      "source": {
+        "repository": "https://github.com/openclaw/skills",
+        "commitSha": "2222222222222222222222222222222222222222"
+      },
+      "approvalRecord": {
+        "submittedBy": "@openclaw/automation",
+        "securityApprover": "@openclaw/security-lead",
+        "runtimeApprover": "@openclaw/runtime-owner",
+        "securityApprovedAt": "2026-02-17T08:00:00Z",
+        "runtimeApprovedAt": "2026-02-17T08:05:00Z"
+      },
+      "evidence": {
+        "scanArtifact": "skill-safe-markdown-scan-evidence",
+        "policyArtifact": "skill-safe-markdown-policy-evaluation",
+        "sbomArtifact": "skill-safe-markdown-sbom"
+      }
+    }
+  },
+  "revokedDigests": ["sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"]
+}

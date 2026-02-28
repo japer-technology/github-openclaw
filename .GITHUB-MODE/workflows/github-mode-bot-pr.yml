@@ -1,0 +1,198 @@
+name: GitHub Mode Bot PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "Source command that produced the changes"
+        required: true
+        type: choice
+        options:
+          - explain
+          - refactor
+          - test
+          - diagram
+      branch_name:
+        description: "Bot branch name to create the PR from"
+        required: true
+        type: string
+      pr_title:
+        description: "Title for the bot-authored PR"
+        required: true
+        type: string
+      pr_body:
+        description: "Body/description for the bot-authored PR"
+        required: false
+        type: string
+        default: "Automated PR created by GitHub Mode bot."
+      source_run_id:
+        description: "Run ID of the originating agent run"
+        required: true
+        type: string
+      create_pull_request:
+        description: "Create pull request when running in a trusted context"
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      command:
+        required: true
+        type: string
+      branch_name:
+        required: true
+        type: string
+      pr_title:
+        required: true
+        type: string
+      pr_body:
+        required: false
+        type: string
+        default: "Automated PR created by GitHub Mode bot."
+      source_run_id:
+        required: true
+        type: string
+      create_pull_request:
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-pr-request:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      validated: ${{ steps.validate.outputs.validated }}
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+
+      - name: Validate bot PR request
+        id: validate
+        env:
+          GITHUB_MODE_COMMAND: ${{ inputs.command }}
+          BOT_BRANCH: ${{ inputs.branch_name }}
+          PR_TITLE: ${{ inputs.pr_title }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          echo "Validating bot PR request..."
+
+          ALLOWED_COMMANDS="explain refactor test diagram"
+          if ! echo "$ALLOWED_COMMANDS" | grep -qw "$GITHUB_MODE_COMMAND"; then
+            echo "::error::Command '$GITHUB_MODE_COMMAND' is not in the allowed set."
+            exit 1
+          fi
+
+          if [[ ! "$BOT_BRANCH" =~ ^github-mode-bot/ ]]; then
+            echo "::error::Bot branch must use 'github-mode-bot/' prefix. Got: $BOT_BRANCH"
+            exit 1
+          fi
+
+          echo "validated=true" >> "$GITHUB_OUTPUT"
+          echo "Bot PR request validated."
+
+      - name: Publish bot PR summary
+        if: always()
+        run: |
+          {
+            echo "## GitHub Mode Bot PR"
+            echo ""
+            echo "- Command: \`${{ inputs.command }}\`"
+            echo "- Branch: \`${{ inputs.branch_name }}\`"
+            echo "- Title: \`${{ inputs.pr_title }}\`"
+            echo "- Source Run: \`${{ inputs.source_run_id }}\`"
+            echo "- Actor: \`${{ github.actor }}\`"
+            echo "- Create PR: \`${{ inputs.create_pull_request }}\`"
+            echo "- Run ID: \`${{ github.run_id }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Emit bot PR evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-bot-pr"
+          cat > "$RUNNER_TEMP/github-mode-bot-pr/evidence.json" <<EOF
+          {
+            "workflow": "github-mode-bot-pr",
+            "command": "${{ inputs.command }}",
+            "branch_name": "${{ inputs.branch_name }}",
+            "pr_title": "${{ inputs.pr_title }}",
+            "source_run_id": "${{ inputs.source_run_id }}",
+            "create_pull_request": "${{ inputs.create_pull_request }}",
+            "result": "pass",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}",
+            "actor": "${{ github.actor }}",
+            "provenance": {
+              "source_command": "${{ inputs.command }}",
+              "commit_sha": "${{ github.sha }}",
+              "run_id": "${{ github.run_id }}",
+              "source_run_id": "${{ inputs.source_run_id }}",
+              "policy_version": "v1.0.0"
+            }
+          }
+          EOF
+
+      - name: Upload bot PR evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-bot-pr-evidence
+          path: ${{ runner.temp }}/github-mode-bot-pr/evidence.json
+          retention-days: 90
+
+  create-pr:
+    needs: validate-pr-request
+    if: needs.validate-pr-request.outputs.validated == 'true' && inputs.create_pull_request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+
+      - name: Enforce policy-gated adapter invocation (Task 4.3)
+        env:
+          GITHUB_MODE_ADAPTER: repo-write
+          GITHUB_MODE_ACTION: open-pr
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/github-mode-bot-pr-policy-gate"
+          node --import tsx .GITHUB-MODE/scripts/enforce-policy-gated-adapter.ts \
+            --json-out "$RUNNER_TEMP/github-mode-bot-pr-policy-gate/policy-decision.json" \
+            --summary-out "$RUNNER_TEMP/github-mode-bot-pr-policy-gate/policy-summary.md"
+
+      - name: Upload policy-gated adapter evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-bot-pr-policy-gate-evidence
+          path: ${{ runner.temp }}/github-mode-bot-pr-policy-gate/
+          retention-days: 90
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          PR_TITLE: ${{ inputs.pr_title }}
+          PR_BODY: ${{ inputs.pr_body }}
+        run: |
+          set -euo pipefail
+          default_branch="${{ github.event.repository.default_branch }}"
+          pr_url=$(gh pr create \
+            --base "$default_branch" \
+            --head "$BRANCH_NAME" \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY")
+          echo "Created PR: $pr_url"
+          echo "- PR URL: $pr_url" >> "$GITHUB_STEP_SUMMARY"

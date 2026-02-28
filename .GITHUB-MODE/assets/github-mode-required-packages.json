@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-02-19",
+  "mergeStrategy": "union-with-root-openclaw-package-json",
+  "description": "GitHub Mode package requirements that must be merged with (not replace) the current OpenClaw package set.",
+  "required": {
+    "dependencies": [
+      "ajv",
+      "yaml"
+    ],
+    "devDependencies": [
+      "tsx",
+      "vitest"
+    ]
+  },
+  "requiredVersions": {
+    "dependencies": {
+      "ajv": "^8.18.0",
+      "yaml": "^2.8.2"
+    },
+    "devDependencies": {
+      "tsx": "^4.21.0",
+      "vitest": "^4.0.18"
+    }
+  },
+  "notes": [
+    "Run `node --import tsx .GITHUB-MODE/scripts/validate-github-mode-package-list.ts` to sync this file and package.json.",
+    "The script auto-discovers package imports from .GITHUB-MODE/scripts/*.ts and .GITHUB-MODE/test/*.ts.",
+    "If a GitHub Mode package is missing from root package.json, it is automatically added using requiredVersions."
+  ]
+}

@@ -1,0 +1,59 @@
+name: GitHub Mode Sync Templates
+
+on:
+  pull_request:
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+  schedule:
+    - cron: "30 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  sync-templates:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - name: Template drift detection
+        run: node --import tsx .GITHUB-MODE/scripts/check-template-drift.ts
+      - name: Publish template sync summary
+        if: always()
+        run: |
+          {
+            echo "## Template sync results"
+            echo ""
+            echo "Template drift detection completed for commit \`${{ github.sha }}\`."
+            echo ""
+            echo "- Run ID: \`${{ github.run_id }}\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Emit template sync evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-sync-templates"
+          cat > "$RUNNER_TEMP/github-mode-sync-templates/evidence.json" <<EOF
+          {
+            "workflow": "github-mode-sync-templates",
+            "result": "pass",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}"
+          }
+          EOF
+      - name: Upload template sync evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-sync-templates-evidence
+          path: ${{ runner.temp }}/github-mode-sync-templates/evidence.json
+          retention-days: 90

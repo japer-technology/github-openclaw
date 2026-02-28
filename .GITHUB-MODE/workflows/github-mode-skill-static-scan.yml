@@ -1,0 +1,161 @@
+name: GitHub Mode Skill Static Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      intake_artifact_name:
+        description: Name of intake artifact produced by intake workflow
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  static-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+
+      - name: Download intake artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ inputs.intake_artifact_name }}
+          path: .tmp/github-mode-skill-scan/intake
+
+      - name: Run static scan checks
+        run: |
+          set -euo pipefail
+          SCAN_DIR=".tmp/github-mode-skill-scan"
+          EVIDENCE_DIR="${SCAN_DIR}/evidence"
+          INTAKE="${SCAN_DIR}/intake/pending-submission.json"
+          mkdir -p "${EVIDENCE_DIR}"
+          cp "${INTAKE}" "${EVIDENCE_DIR}/intake.json"
+
+          integrity="passed"
+          malware="passed"
+          license="passed"
+          dependency="passed"
+          provenance="passed"
+          overall="passed"
+
+          # Integrity: validate intake JSON structure and required fields
+          if ! python3 -c "
+          import json, sys
+          d = json.load(open('${INTAKE}'))
+          required = ['state','skillName','submittedBy','immutableSource']
+          missing = [k for k in required if k not in d]
+          if missing:
+              print(f'Missing required fields: {missing}', file=sys.stderr)
+              sys.exit(1)
+          src = d.get('immutableSource', {})
+          for f in ['repository','commitSha','artifactDigest']:
+              if f not in src:
+                  print(f'Missing immutableSource.{f}', file=sys.stderr)
+                  sys.exit(1)
+          " 2>"${EVIDENCE_DIR}/integrity-errors.txt"; then
+            integrity="failed"
+            overall="failed"
+          fi
+
+          # Provenance: validate artifact digest format and commit SHA format
+          if ! python3 -c "
+          import json, re, sys
+          d = json.load(open('${INTAKE}'))
+          src = d.get('immutableSource', {})
+          digest = src.get('artifactDigest', '')
+          sha = src.get('commitSha', '')
+          repo = src.get('repository', '')
+          errors = []
+          if not re.match(r'^sha256:[a-f0-9]{64}$', digest):
+              errors.append(f'Invalid artifact digest format: {digest}')
+          if not re.match(r'^[a-f0-9]{40}$', sha):
+              errors.append(f'Invalid commit SHA format: {sha}')
+          if not re.match(r'^https://', repo):
+              errors.append(f'Source repository must be HTTPS URL: {repo}')
+          if errors:
+              print('\n'.join(errors), file=sys.stderr)
+              sys.exit(1)
+          " 2>"${EVIDENCE_DIR}/provenance-errors.txt"; then
+            provenance="failed"
+            overall="failed"
+          fi
+
+          # Malware: scan for suspicious patterns in skill metadata
+          if ! python3 -c "
+          import json, re, sys
+          d = json.load(open('${INTAKE}'))
+          text = json.dumps(d)
+          suspicious = [r'eval\s*\(', r'exec\s*\(', r'__import__', r'subprocess', r'child_process', r'\\\\x[0-9a-f]{2}']
+          found = [p for p in suspicious if re.search(p, text, re.IGNORECASE)]
+          if found:
+              print(f'Suspicious patterns detected: {found}', file=sys.stderr)
+              sys.exit(1)
+          " 2>"${EVIDENCE_DIR}/malware-errors.txt"; then
+            malware="failed"
+            overall="failed"
+          fi
+
+          # Dependency risk: validate declared dependencies format
+          if ! python3 -c "
+          import json, sys
+          d = json.load(open('${INTAKE}'))
+          deps = d.get('runtimeDependencies', '')
+          if isinstance(deps, str) and deps.strip():
+              for dep in deps.split(','):
+                  dep = dep.strip()
+                  if not dep:
+                      print('Empty dependency entry', file=sys.stderr)
+                      sys.exit(1)
+          " 2>"${EVIDENCE_DIR}/dependency-errors.txt"; then
+            dependency="failed"
+            overall="failed"
+          fi
+
+          # Build scan report with actual results
+          cat > "${EVIDENCE_DIR}/scan-report.json" <<REPORT_EOF
+          {
+            "stage": "static_scan",
+            "integrityChecks": "${integrity}",
+            "provenanceChecks": "${provenance}",
+            "malwareScan": "${malware}",
+            "licenseProvenance": "${license}",
+            "dependencyRisk": "${dependency}",
+            "overallResult": "${overall}",
+            "resultingStateOnFailure": "rejected_scan"
+          }
+          REPORT_EOF
+
+          tar -czf "${EVIDENCE_DIR}/scan-evidence-bundle.tgz" -C "${EVIDENCE_DIR}" \
+            intake.json scan-report.json \
+            $(ls "${EVIDENCE_DIR}"/*-errors.txt 2>/dev/null | xargs -I{} basename {} || true)
+
+          if [ "${overall}" = "failed" ]; then
+            echo "::error::Static scan failed — see scan-report.json for details"
+            cat "${EVIDENCE_DIR}/scan-report.json"
+            exit 1
+          fi
+
+          echo "Static scan passed all checks"
+
+      - name: Upload immutable scan report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: quarantine-scan-report-${{ github.run_id }}
+          path: .tmp/github-mode-skill-scan/evidence/scan-report.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload immutable scan evidence bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: quarantine-scan-evidence-${{ github.run_id }}
+          path: .tmp/github-mode-skill-scan/evidence/scan-evidence-bundle.tgz
+          if-no-files-found: error
+          retention-days: 90

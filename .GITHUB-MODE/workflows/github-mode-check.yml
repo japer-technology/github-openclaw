@@ -1,0 +1,54 @@
+name: GitHub Mode Check
+
+on:
+  pull_request:
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".GITHUB-MODE/**"
+      - ".github/workflows/github-mode-*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: ./.github/actions/setup-node-env
+      - name: Enforce GitHub Mode activation
+        run: node --import tsx .GITHUB-MODE/scripts/check-github-mode-active.ts
+      - name: Lint and format check
+        run: pnpm check
+      - name: Validate runtime contracts
+        run: pnpm contracts:github:validate
+      - name: Policy drift check
+        run: node --import tsx .GITHUB-MODE/scripts/check-policy-drift.ts
+      - name: Eval thresholds contract validation
+        run: node --import tsx .GITHUB-MODE/scripts/check-eval-thresholds.ts
+      - name: Cost thresholds contract validation
+        run: node --import tsx .GITHUB-MODE/scripts/check-cost-thresholds.ts
+      - name: Emit check evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/github-mode-check"
+          cat > "$RUNNER_TEMP/github-mode-check/evidence.json" <<EOF
+          {
+            "workflow": "github-mode-check",
+            "result": "pass",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}"
+          }
+          EOF
+      - name: Upload check evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: github-mode-check-evidence
+          path: ${{ runner.temp }}/github-mode-check/evidence.json
+          retention-days: 90
