@@ -105,6 +105,11 @@ function resolveUserPath(
   return path.resolve(trimmed);
 }
 
+/** Lazy accessor — evaluated on first read so env vars set after import are respected. */
+export function getStateDir(): string {
+  return resolveStateDir();
+}
+/** @deprecated Use `getStateDir()` for env-safe lazy resolution. */
 export const STATE_DIR = resolveStateDir();
 
 /**
@@ -182,6 +187,11 @@ export function resolveConfigPath(
   return path.join(stateDir, CONFIG_FILENAME);
 }
 
+/** Lazy accessor — evaluated on first read so env vars set after import are respected. */
+export function getConfigPath(): string {
+  return resolveConfigPathCandidate();
+}
+/** @deprecated Use `getConfigPath()` for env-safe lazy resolution. */
 export const CONFIG_PATH = resolveConfigPathCandidate();
 
 /**
@@ -204,6 +214,9 @@ export function resolveDefaultConfigCandidates(
     const resolved = resolveUserPath(openclawStateDir, env, effectiveHomedir);
     candidates.push(path.join(resolved, CONFIG_FILENAME));
     candidates.push(...LEGACY_CONFIG_FILENAMES.map((name) => path.join(resolved, name)));
+    // When OPENCLAW_STATE_DIR is explicitly set, skip legacy home-dir scanning
+    // so that stale configs in ~/.openclaw/ are never accidentally picked up.
+    return candidates;
   }
 
   const defaultDirs = [newStateDir(effectiveHomedir), ...legacyStateDirs(effectiveHomedir)];

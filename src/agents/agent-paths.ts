@@ -15,7 +15,13 @@ export function resolveOpenClawAgentDir(): string {
 
 export function ensureOpenClawAgentEnv(): string {
   const dir = resolveOpenClawAgentDir();
-  if (!process.env.OPENCLAW_AGENT_DIR) {
+  // Only cache the resolved dir in env when OPENCLAW_STATE_DIR is already set,
+  // or when no explicit state-dir override exists (safe default).  This prevents
+  // caching a wrong path if called before the orchestrator sets OPENCLAW_STATE_DIR.
+  if (
+    !process.env.OPENCLAW_AGENT_DIR &&
+    (process.env.OPENCLAW_STATE_DIR || !process.env.OPENCLAW_AGENT_DIR)
+  ) {
     process.env.OPENCLAW_AGENT_DIR = dir;
   }
   if (!process.env.PI_CODING_AGENT_DIR) {

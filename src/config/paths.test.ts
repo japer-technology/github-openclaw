@@ -9,6 +9,8 @@ import {
   resolveOAuthDir,
   resolveOAuthPath,
   resolveStateDir,
+  getStateDir,
+  getConfigPath,
 } from "./paths.js";
 
 describe("oauth paths", () => {
@@ -148,5 +150,32 @@ describe("state + config path candidates", () => {
       const resolved = resolveConfigPath(env, overrideDir, () => root);
       expect(resolved).toBe(path.join(overrideDir, "openclaw.json"));
     });
+  });
+
+  it("skips legacy home-dir scanning when OPENCLAW_STATE_DIR is set", () => {
+    const home = "/home/test";
+    const stateDir = "/custom/gitclaw/state";
+    const env = { OPENCLAW_STATE_DIR: stateDir } as NodeJS.ProcessEnv;
+    const candidates = resolveDefaultConfigCandidates(env, () => home);
+    // Should only contain candidates within the overridden state dir
+    const resolvedState = path.resolve(stateDir);
+    for (const c of candidates) {
+      expect(c.startsWith(resolvedState)).toBe(true);
+    }
+    // Should NOT contain any candidates from ~/.openclaw or legacy dirs
+    expect(candidates.some((c) => c.includes(".openclaw"))).toBe(false);
+    expect(candidates.some((c) => c.includes(".clawdbot"))).toBe(false);
+    expect(candidates.some((c) => c.includes(".moldbot"))).toBe(false);
+    expect(candidates.some((c) => c.includes(".moltbot"))).toBe(false);
+  });
+});
+
+describe("lazy path accessors", () => {
+  it("getStateDir returns a string", () => {
+    expect(typeof getStateDir()).toBe("string");
+  });
+
+  it("getConfigPath returns a string", () => {
+    expect(typeof getConfigPath()).toBe("string");
   });
 });
