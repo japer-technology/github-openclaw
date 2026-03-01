@@ -109,7 +109,6 @@ function resolveUserPath(
 export function getStateDir(): string {
   return resolveStateDir();
 }
-/** @deprecated Use `getStateDir()` for env-safe lazy resolution. */
 export const STATE_DIR = resolveStateDir();
 
 /**
@@ -191,7 +190,6 @@ export function resolveConfigPath(
 export function getConfigPath(): string {
   return resolveConfigPathCandidate();
 }
-/** @deprecated Use `getConfigPath()` for env-safe lazy resolution. */
 export const CONFIG_PATH = resolveConfigPathCandidate();
 
 /**
