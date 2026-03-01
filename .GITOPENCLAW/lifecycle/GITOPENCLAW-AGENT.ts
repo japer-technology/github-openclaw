@@ -411,7 +411,9 @@ try {
     const readOnly: string[] = [];
     const mutation: string[] = [];
     for (const [name, desc] of Object.entries(SUPPORTED_COMMANDS)) {
-      if (name === "agent") continue; // agent is the natural-language default, not a slash command
+      if (name === "agent") {
+        continue;
+      } // agent is the natural-language default, not a slash command
       const entry = `| \`/${name}\` | ${desc.description} |`;
       if (desc.mutation) {
         mutation.push(entry);
@@ -502,6 +504,8 @@ try {
     ...process.env,
     OPENCLAW_STATE_DIR: stateDir,
     OPENCLAW_CONFIG_PATH: runtimeConfigPath,
+    OPENCLAW_OAUTH_DIR: resolve(stateDir, "credentials"),
+    OPENCLAW_HOME: repoRoot,
   };
 
   // Pipe agent output through `tee` so we get:
