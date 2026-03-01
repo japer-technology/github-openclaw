@@ -105,7 +105,11 @@ export async function probeGateway(opts: {
         settle({
           ok: false,
           connectLatencyMs,
-          error: connectError ? `connect failed: ${connectError}` : "timeout",
+          error: connectError
+            ? connectError.includes("ECONNREFUSED")
+              ? "not running"
+              : `connect failed: ${connectError}`
+            : "timeout",
           close,
           health: null,
           status: null,

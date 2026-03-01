@@ -15,6 +15,9 @@ export function resolveOpenClawAgentDir(): string {
 
 export function ensureOpenClawAgentEnv(): string {
   const dir = resolveOpenClawAgentDir();
+  // NB: When using the subprocess model (e.g. .GITOPENCLAW orchestrator),
+  // OPENCLAW_STATE_DIR is set before this code runs so the resolved dir is correct.
+  // For in-process usage, ensure OPENCLAW_STATE_DIR is set before calling this.
   if (!process.env.OPENCLAW_AGENT_DIR) {
     process.env.OPENCLAW_AGENT_DIR = dir;
   }

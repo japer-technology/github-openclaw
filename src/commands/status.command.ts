@@ -105,6 +105,8 @@ export async function statusCommand(
     memoryPlugin,
   } = scan;
 
+  const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+
   const securityAudit = await withProgress(
     {
       label: "Running security audit…",
@@ -238,7 +240,9 @@ export async function statusCommand(
       ? warn("misconfigured (remote.url missing)")
       : gatewayReachable
         ? ok(`reachable ${formatDuration(gatewayProbe?.connectLatencyMs)}`)
-        : warn(gatewayProbe?.error ? `unreachable (${gatewayProbe.error})` : "unreachable");
+        : isCI
+          ? "n/a (CI — commands run inline)"
+          : warn(gatewayProbe?.error ? `unreachable (${gatewayProbe.error})` : "unreachable");
     const auth =
       gatewayReachable && !remoteUrlMissing
         ? ` · auth ${formatGatewayAuthUsed(resolveGatewayProbeAuth(cfg))}`
@@ -278,6 +282,9 @@ export async function statusCommand(
     getNodeDaemonStatusSummary(),
   ]);
   const daemonValue = (() => {
+    if (isCI) {
+      return "n/a (CI environment)";
+    }
     if (daemon.installed === false) {
       return `${daemon.label} not installed`;
     }
@@ -285,6 +292,9 @@ export async function statusCommand(
     return `${daemon.label} ${installedPrefix}${daemon.loadedText}${daemon.runtimeShort ? ` · ${daemon.runtimeShort}` : ""}`;
   })();
   const nodeDaemonValue = (() => {
+    if (isCI) {
+      return "n/a (CI environment)";
+    }
     if (nodeDaemon.installed === false) {
       return `${nodeDaemon.label} not installed`;
     }

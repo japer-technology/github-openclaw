@@ -34,6 +34,7 @@ export async function statusAllCommand(
   runtime: RuntimeEnv,
   opts?: { timeoutMs?: number },
 ): Promise<void> {
+  const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
   await withProgress({ label: "Scanning status --all…", total: 11 }, async (progress) => {
     progress.setLabel("Loading config…");
     const cfg = loadConfig();
@@ -237,9 +238,11 @@ export async function statusAllCommand(
     const gatewayTarget = remoteUrlMissing ? `fallback ${connection.url}` : connection.url;
     const gatewayStatus = gatewayReachable
       ? `reachable ${formatDurationPrecise(gatewayProbe?.connectLatencyMs ?? 0)}`
-      : gatewayProbe?.error
-        ? `unreachable (${gatewayProbe.error})`
-        : "unreachable";
+      : isCI
+        ? "n/a (CI — commands run inline)"
+        : gatewayProbe?.error
+          ? `unreachable (${gatewayProbe.error})`
+          : "unreachable";
     const gatewayAuth = gatewayReachable ? ` · auth ${formatGatewayAuthUsed(probeAuth)}` : "";
     const gatewaySelfLine =
       gatewaySelf?.host || gatewaySelf?.ip || gatewaySelf?.version || gatewaySelf?.platform
@@ -292,19 +295,23 @@ export async function statusAllCommand(
       daemon
         ? {
             Item: "Gateway service",
-            Value: !daemon.installed
-              ? `${daemon.label} not installed`
-              : `${daemon.label} ${daemon.installed ? "installed · " : ""}${daemon.loadedText}${daemon.runtime?.status ? ` · ${daemon.runtime.status}` : ""}${daemon.runtime?.pid ? ` (pid ${daemon.runtime.pid})` : ""}`,
+            Value: isCI
+              ? "n/a (CI environment)"
+              : !daemon.installed
+                ? `${daemon.label} not installed`
+                : `${daemon.label} ${daemon.installed ? "installed · " : ""}${daemon.loadedText}${daemon.runtime?.status ? ` · ${daemon.runtime.status}` : ""}${daemon.runtime?.pid ? ` (pid ${daemon.runtime.pid})` : ""}`,
           }
-        : { Item: "Gateway service", Value: "unknown" },
+        : { Item: "Gateway service", Value: isCI ? "n/a (CI environment)" : "unknown" },
       nodeService
         ? {
             Item: "Node service",
-            Value: !nodeService.installed
-              ? `${nodeService.label} not installed`
-              : `${nodeService.label} ${nodeService.installed ? "installed · " : ""}${nodeService.loadedText}${nodeService.runtime?.status ? ` · ${nodeService.runtime.status}` : ""}${nodeService.runtime?.pid ? ` (pid ${nodeService.runtime.pid})` : ""}`,
+            Value: isCI
+              ? "n/a (CI environment)"
+              : !nodeService.installed
+                ? `${nodeService.label} not installed`
+                : `${nodeService.label} ${nodeService.installed ? "installed · " : ""}${nodeService.loadedText}${nodeService.runtime?.status ? ` · ${nodeService.runtime.status}` : ""}${nodeService.runtime?.pid ? ` (pid ${nodeService.runtime.pid})` : ""}`,
           }
-        : { Item: "Node service", Value: "unknown" },
+        : { Item: "Node service", Value: isCI ? "n/a (CI environment)" : "unknown" },
       {
         Item: "Agents",
         Value: `${agentStatus.agents.length} total · ${agentStatus.bootstrapPendingCount} bootstrapping · ${aliveAgents} active · ${agentStatus.totalSessions} sessions`,
