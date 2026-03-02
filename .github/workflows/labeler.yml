@@ -16,6 +16,10 @@ on:
         required: false
         default: "50"
 
+concurrency:
+  group: labeler-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
