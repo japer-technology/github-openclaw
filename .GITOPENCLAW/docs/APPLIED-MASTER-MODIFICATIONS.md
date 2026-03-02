@@ -23,6 +23,53 @@ All changes follow the analysis in [MINIMUM-REQUIRED-MASTER-MODIFICATIONS.md](MI
 | 5   | `src/agents/agent-paths.ts`      | Documentation comment                 | Trivial            |
 | 6   | `src/config/paths.test.ts`       | New tests                             | Additive only      |
 | 7   | `src/gateway/probe.test.ts`      | New tests                             | Additive only      |
+| 8   | `.github/` (multiple files)      | Disabled openclaw dev files           | Low — file moves   |
+
+---
+
+## Disabled OpenClaw Development Files
+
+### Rationale
+
+Since `.GITOPENCLAW` is **executing** the fork (not developing it), the upstream openclaw development workflows, issue templates, PR template, and funding configuration are not required. These files are moved to `.github/workflows-disabled/` so that the `.github/` folder becomes the focal point for `.GITOPENCLAW`-specific configuration.
+
+### Files Moved to `.github/workflows-disabled/`
+
+The following openclaw files were moved out of their active `.github/` locations:
+
+| Original Location                                  | Moved To                                            |
+| -------------------------------------------------- | --------------------------------------------------- |
+| `.github/FUNDING.yml`                              | `.github/workflows-disabled/FUNDING.yml`            |
+| `.github/pull_request_template.md`                 | `.github/workflows-disabled/pull_request_template.md` |
+| `.github/ISSUE_TEMPLATE/bug_report.yml`            | `.github/workflows-disabled/bug_report.yml`         |
+| `.github/ISSUE_TEMPLATE/feature_request.yml`       | `.github/workflows-disabled/feature_request.yml`    |
+| `.github/ISSUE_TEMPLATE/regression_bug_report.yml` | `.github/workflows-disabled/regression_bug_report.yml` |
+| `.github/ISSUE_TEMPLATE/config.yml`                | `.github/workflows-disabled/config.yml`             |
+
+Previously disabled openclaw workflows already in `.github/workflows-disabled/`:
+
+- `auto-response.yml`
+- `ci.yml`
+- `docker-release.yml`
+- `install-smoke.yml`
+- `labeler.yml`
+- `sandbox-common-smoke.yml`
+- `workflow-sanity.yml`
+
+### Active `.github/` Files (GITOPENCLAW-specific)
+
+After the moves, the active `.github/` area contains only GITOPENCLAW files:
+
+- **Workflows:** `GITOPENCLAW-WORKFLOW-AGENT.yml`, `delete-workflow-runs.yml`, `GITOPENCLAW-enforce-disabled.yml`
+- **Issue templates:** `GITOPENCLAW-NEW-ISSUE.yml`, `GITCLAW-TEMPLATE-FEATURE-REQUEST.yml`, `GITOPENCLAW-TEMPLATE-HATCH.md`
+
+### Enforcement Workflow
+
+A workflow (`.github/workflows/GITOPENCLAW-enforce-disabled.yml`) automatically detects if any of the disabled openclaw files reappear in their original locations (e.g. after a fork master sync) and moves them back to `.github/workflows-disabled/`.
+
+**Trigger:** Runs on push to `main` when any of the disabled file paths are detected, or on manual workflow dispatch.
+
+**How to re-apply if upstream changes enforcement:** The workflow is self-contained. If upstream adds new files to `.github/` that should be disabled, add their paths to the `paths:` trigger and the file loop in the workflow.
 
 ---
 
@@ -301,4 +348,4 @@ These were already set by the orchestrator before this change. The modifications
 
 ---
 
-_Last updated: 2026-03-01_
+_Last updated: 2026-03-02_
