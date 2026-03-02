@@ -10,6 +10,8 @@
 
 ### An AI agent that lives in your GitHub repository — powered by OpenClaw
 
+[![GITOPENCLAW-WORKFLOW-AGENT](https://github.com/japer-technology/github-openclaw/actions/workflows/GITOPENCLAW-WORKFLOW-AGENT.yml/badge.svg)](https://github.com/japer-technology/github-openclaw/actions/workflows/GITOPENCLAW-WORKFLOW-AGENT.yml)
+
 > Drop a folder. Push. Open an issue. Talk to your agent.
 
 `.GITOPENCLAW` is a self-contained AI agent that runs entirely within GitHub Actions, powered by the [OpenClaw](https://github.com/openclaw/openclaw) runtime. No servers, no infrastructure, no accounts to create. Just a folder in your repo and an LLM API key.
