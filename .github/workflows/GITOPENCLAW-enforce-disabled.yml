@@ -1,0 +1,56 @@
+name: GITOPENCLAW Enforce Disabled Files
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/FUNDING.yml"
+      - ".github/pull_request_template.md"
+      - ".github/ISSUE_TEMPLATE/bug_report.yml"
+      - ".github/ISSUE_TEMPLATE/feature_request.yml"
+      - ".github/ISSUE_TEMPLATE/regression_bug_report.yml"
+      - ".github/ISSUE_TEMPLATE/config.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Move reappeared openclaw files to workflows-disabled
+        run: |
+          MOVED=false
+
+          for FILE in \
+            ".github/FUNDING.yml" \
+            ".github/pull_request_template.md" \
+            ".github/ISSUE_TEMPLATE/bug_report.yml" \
+            ".github/ISSUE_TEMPLATE/feature_request.yml" \
+            ".github/ISSUE_TEMPLATE/regression_bug_report.yml" \
+            ".github/ISSUE_TEMPLATE/config.yml"; do
+            if [ -f "$FILE" ]; then
+              BASENAME=$(basename "$FILE")
+              echo "Moving $FILE → .github/workflows-disabled/$BASENAME"
+              mv "$FILE" ".github/workflows-disabled/$BASENAME"
+              git rm --cached "$FILE" 2>/dev/null || true
+              git add ".github/workflows-disabled/$BASENAME"
+              MOVED=true
+            fi
+          done
+
+          if [ "$MOVED" = true ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: move reappeared openclaw files back to workflows-disabled
+
+Openclaw development files are not used in this fork.
+See .GITOPENCLAW/docs/APPLIED-MASTER-MODIFICATIONS.md"
+            git push
+          else
+            echo "No openclaw files to move — all clean."
+          fi
