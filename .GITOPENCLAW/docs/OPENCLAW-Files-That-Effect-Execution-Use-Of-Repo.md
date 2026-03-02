@@ -53,7 +53,7 @@ A file "affects execution" if it does any of the following in the context of thi
 4. Clutters the PR list with irrelevant dependency bumps
 5. May require the `NPM_NPMJS_TOKEN` secret to be configured and valid
 
-**The `.GITOPENCLAW/` directory has its own `bun.lock` and `package.json`** — it does not use the root lockfile or any of the monitored ecosystems.
+**The `.GITOPENCLAW/` directory has its own `bun.lock` (or `bun.lockb`) and `package.json`** — it does not use the root lockfile or any of the monitored ecosystems.
 
 **Recommendation:** Disable entirely, or reduce to monitoring only `.github/workflows/` for Actions version updates (the only ecosystem `.GITOPENCLAW` actually uses).
 
@@ -205,9 +205,9 @@ These files are detected by tools automatically when they exist in the repositor
 | Property | Value |
 |---|---|
 | **Size** | 396 KB |
-| **Status** | Listed in `.gitignore` — **should not be tracked** |
+| **Status** | Listed in `.gitignore` but **still tracked** (committed before the ignore rule was added) |
 
-**Wait — it's gitignored?** Yes. The root `.gitignore` contains `pnpm-lock.yaml`. But the file **still exists in the repo** (396 KB). This means it was committed before the gitignore rule was added, or the rule was added after the file was tracked. Git continues tracking already-committed files even after they're gitignored.
+**Why is a gitignored file still present?** The root `.gitignore` contains `pnpm-lock.yaml`. However, the file was committed before the ignore rule was added. Git continues tracking already-committed files even after they're added to `.gitignore` — the ignore rule only prevents *new* additions, not existing tracked files.
 
 **Why it matters:** Every checkout downloads this 396 KB file. It serves no purpose in the fork since pnpm is never installed or invoked.
 
