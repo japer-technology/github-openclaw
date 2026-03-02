@@ -18,5 +18,6 @@
 - [MINIMUM-REQUIRED-MASTER-MODIFICATIONS.md](MINIMUM-REQUIRED-MASTER-MODIFICATIONS.md) — Analysis: minimum OpenClaw source changes needed to redirect all file paths to .GITCLAW locations
 - [TO-BE-DEALT-WITH.md](TO-BE-DEALT-WITH.md) — Deep analysis of first-light command issues when running in .GITOPENCLAW CI context
 - [GITOPENCLAW-Other-Files.md](GITOPENCLAW-Other-Files.md) — Analysis: whether `.agents/` and `.agent/` files are required by `.GITOPENCLAW`
+- [GITOPENCLAW-Concurrent-Execution-Analysis.md](GITOPENCLAW-Concurrent-Execution-Analysis.md) — Deep analysis: why multiple actions cannot execute simultaneously, local fork parallelism, and multi-fork contribution models
 - [1st-attempt/magic.md](../1st-attempt/magic.md) — Where the LLM magic lives in OpenClaw
 - [1st-attempt/libraries.md](../1st-attempt/libraries.md) — External dependency inventory
