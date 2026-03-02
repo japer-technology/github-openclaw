@@ -333,9 +333,9 @@ if [[ "$PERM" != "admin" && "$PERM" != "maintain" && "$PERM" != "write" ]]; then
 fi
 ```
 
-Only actors with `admin`, `maintain`, or `write` collaborator permissions can trigger full agent execution. This prevents drive-by users on public repositories from consuming Actions minutes, invoking LLM API calls, or injecting content into the agent's memory.
+Actors with `admin`, `maintain`, or `write` collaborator permissions are identified as trusted. For actors below this threshold, the workflow emits a notice and **defers trust gating to the agent** via the `ACTOR_PERMISSION` environment variable. This two-tier design allows the workflow to proceed (so the agent can post a diagnostic message or perform read-only operations) while the agent enforces its own trust-level logic (e.g., refusing tool execution, reducing capabilities, or declining to respond entirely for untrusted actors).
 
-The permission level is passed to the agent via the `ACTOR_PERMISSION` environment variable, enabling the agent to implement additional trust-level logic (e.g., reduced tool access for lower-trust actors).
+This is an intentional soft-gate: the workflow does not hard-exit for lower-permission actors because the agent may want to acknowledge the interaction (e.g., "I can only respond to collaborators"). Hard enforcement can be added by uncommenting the `exit 1` path in the Authorize step if operators prefer a strict block.
 
 ### Bot Loop Prevention
 
@@ -349,6 +349,8 @@ if: >-
 ```
 
 This prevents infinite loops where the agent responds to its own reply, which triggers another response, ad infinitum. The filter is applied at the workflow trigger level — the job never starts for bot-authored comments.
+
+> **Note:** This filter assumes the agent posts comments as `github-actions[bot]` (the default identity for `GITHUB_TOKEN`-authenticated API calls). If the workflow is configured to use a GitHub App or personal access token with a different identity, the filter must be updated to match that identity.
 
 ### Scoped Commit Isolation
 
@@ -420,7 +422,7 @@ The collaborator-only access gating (see above) is the primary defense against a
 | Property | Mechanism |
 |---|---|
 | **Fail-closed by default** | Sentinel file `GITOPENCLAW-ENABLED.md` must exist |
-| **Collaborator-only execution** | GitHub API permission check before any agent logic |
+| **Collaborator-aware access gating** | GitHub API permission check; trusted permissions proceed fully, lower permissions deferred to agent-level trust logic |
 | **Bot loop prevention** | Workflow `if` condition filters `github-actions[bot]` comments |
 | **Source code integrity** | Scoped `git add .GITOPENCLAW/` — nothing outside the folder is committed |
 | **Credential isolation** | API keys in GitHub secrets only; `state/.gitignore` excludes `credentials/` |
