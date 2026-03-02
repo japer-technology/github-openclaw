@@ -273,7 +273,7 @@ Both trigger on:
 
 **Scenario:** `labeler.yml` applies a contributor label to the issue. The `.GITOPENCLAW` agent's trust-level system reads issue metadata (including labels) to determine actor permissions. If the labeler adds a label that the agent does not expect (e.g., `maintainer`), it could affect trust gating.
 
-**Mitigation:** Disable `labeler.yml` in runtime-only deployments, or ensure the agent's trust-level logic is label-agnostic (currently it uses GitHub API permission checks, not labels, so the risk is low but not zero).
+**Mitigation:** Disable `labeler.yml` in runtime-only deployments, or ensure the agent's trust-level logic is label-agnostic. The risk is low if trust gating relies on GitHub API permission checks rather than labels, but eliminating the overlap is the safest approach.
 
 ---
 
