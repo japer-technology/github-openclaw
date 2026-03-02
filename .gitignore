@@ -6,6 +6,8 @@ dist
 pnpm-lock.yaml
 bun.lock
 bun.lockb
+!.GITOPENCLAW/bun.lock
+!.GITOPENCLAW/bun.lockb
 coverage
 __pycache__/
 *.pyc
