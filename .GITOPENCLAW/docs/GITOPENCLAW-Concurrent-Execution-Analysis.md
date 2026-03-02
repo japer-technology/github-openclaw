@@ -271,7 +271,7 @@ Every `.GITOPENCLAW` run makes multiple GitHub API calls via `gh`:
 | `gh issue comment` | Post reply | End |
 | `gh api .../reactions/{id}` DELETE | Remove 👀 indicator | End |
 
-The `GITHUB_TOKEN` (auto-generated per workflow run) has a rate limit of **1,000 requests per hour per repository**. Each run consumes ~5–8 API calls. At 10 concurrent runs, that is 50–80 calls. Sustained burst traffic of 100+ events per hour (e.g., a bot loop or a busy project) can exhaust the rate budget.
+The `GITHUB_TOKEN` (auto-generated per workflow run) has a rate limit of **1,000 requests per hour per repository**. Critically, this limit is **shared across all workflow runs in the repository** — not per-run. Every concurrent GitHub Actions run, every local fork using the same token or a PAT scoped to the repo, and every external integration all draw from the same 1,000-request pool. Each run consumes ~5–8 API calls. At 10 concurrent runs, that is 50–80 calls per burst. Sustained burst traffic of 100+ events per hour (e.g., a bot loop or a busy project) can exhaust the rate budget, blocking all runs — not just the one that triggered the limit.
 
 ### Side-effect ordering on the issue timeline
 
@@ -466,7 +466,7 @@ Cloud repo:   .GITOPENCLAW/state/ (merged view)
 
 Sync could use git merge with custom merge drivers, or a higher-level protocol that reconciles session transcripts. This is essentially a **CRDT (Conflict-free Replicated Data Type)** problem — designing state representations that converge without coordination.
 
-For example, if session transcripts were designed as sets of immutable events (each with a globally unique ID and a Lamport timestamp), any fork could append events locally and merge them into the cloud repo without conflicts, because the merge operation is **commutative** and **idempotent**:
+For example, if session transcripts were designed as sets of immutable events (each with a globally unique ID and a Lamport timestamp), any fork could append events locally and merge them into the cloud repo without conflicts. Under **set-union semantics with deduplication by event ID**, the merge is order-independent and replay-safe — adding the same event twice has no effect, and the final set is the same regardless of merge order:
 
 ```jsonl
 {"id":"evt_abc","lamport":1,"role":"user","content":"explain auth"}
