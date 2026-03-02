@@ -8,8 +8,8 @@
     "untrustedBehavior": "read-only-response"
   },
   "limits": {
-    "maxTokensPerRun": 100000,
-    "maxToolCallsPerRun": 50,
-    "workflowTimeoutMinutes": 10
+    "maxTokensPerRun": 10000000,
+    "maxToolCallsPerRun": 1000,
+    "workflowTimeoutMinutes": 120
   }
 }
