@@ -8,6 +8,7 @@
 
 ### Guides and reference material for GitOpenClaw
 
+- [GITOPENCLAW-What-It-Does.md](GITOPENCLAW-What-It-Does.md) — **What .GITOPENCLAW does for OpenClaw — descriptions at every length, from one-liner to deep analysis**
 - [RFC-GITOPENCLAW.md](RFC-GITOPENCLAW.md) — **RFC: problem statement, design, security model, and adoption plan for .GITOPENCLAW**
 - [GitHub-as-Infrastructure.md](GitHub-as-Infrastructure.md) — Paper: how .GITCLAW proves GitHub as Infrastructure and .GITOPENCLAW realizes it as a full agentic platform
 - [GITOPENCLAW-The-Idea.md](GITOPENCLAW-The-Idea.md) — The vision: why an AI agent should live inside your repo, powered by OpenClaw
