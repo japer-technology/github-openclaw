@@ -8,6 +8,7 @@
 
 ### Guides and reference material for GitOpenClaw
 
+- [RFC-GITOPENCLAW.md](RFC-GITOPENCLAW.md) — **RFC: problem statement, design, security model, and adoption plan for .GITOPENCLAW**
 - [GitHub-as-Infrastructure.md](GitHub-as-Infrastructure.md) — Paper: how .GITCLAW proves GitHub as Infrastructure and .GITOPENCLAW realizes it as a full agentic platform
 - [GITOPENCLAW-The-Idea.md](GITOPENCLAW-The-Idea.md) — The vision: why an AI agent should live inside your repo, powered by OpenClaw
 - [GITOPENCLAW-How-it-should-be-done.md](GITOPENCLAW-How-it-should-be-done.md) — The definitive guide: fork-as-installation, architecture, execution model, and update flow
