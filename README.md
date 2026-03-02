@@ -1,5 +1,3 @@
-[![GITOPENCLAW-WORKFLOW-AGENT](https://github.com/japer-technology/github-openclaw/actions/workflows/GITOPENCLAW-WORKFLOW-AGENT.yml/badge.svg)](https://github.com/japer-technology/github-openclaw/actions/workflows/GITOPENCLAW-WORKFLOW-AGENT.yml)
-
 # 🦞 OpenClaw — Personal AI Assistant
 
 <p align="center">
