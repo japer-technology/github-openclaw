@@ -59,8 +59,11 @@
  * PUSH CONFLICT RESOLUTION
  * ─────────────────────────────────────────────────────────────────────────────
  * Multiple agents may race to push to the same branch.  To handle this gracefully
- * the script retries a failed `git push` up to 3 times, pulling with `--rebase`
- * between attempts.
+ * the script retries a failed `git push` up to 10 times with increasing backoff
+ * delays, pulling with `--rebase -X theirs` between attempts.  If a rebase
+ * produces a non-auto-resolvable conflict, the rebase is aborted and the error
+ * is surfaced immediately.  After exhausting all attempts the script throws with
+ * the attempt count and total retry window.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * GITHUB COMMENT SIZE LIMIT
@@ -779,14 +782,30 @@ try {
     await run(["git", "commit", "-m", `gitopenclaw: work on issue #${issueNumber}`]);
   }
 
-  // Retry push up to 3 times, rebasing on each conflict to avoid force-pushing.
-  for (let i = 1; i <= 3; i++) {
+  // Retry push up to 10 times with backoff, rebasing with -X theirs on each conflict.
+  const pushBackoffDelays = [1000, 2000, 3000, 5000, 7000, 8000, 10000, 12000, 12000, 15000];
+  const MAX_PUSH_ATTEMPTS = pushBackoffDelays.length; // 10
+  let pushed = false;
+  for (let i = 0; i < MAX_PUSH_ATTEMPTS; i++) {
     const push = await run(["git", "push", "origin", `HEAD:${defaultBranch}`]);
     if (push.exitCode === 0) {
+      pushed = true;
       break;
     }
-    console.log(`Push failed, rebasing and retrying (${i}/3)...`);
-    await run(["git", "pull", "--rebase", "origin", defaultBranch]);
+    console.log(`Push failed, rebasing and retrying (${i + 1}/${MAX_PUSH_ATTEMPTS})...`);
+    await new Promise((r) => setTimeout(r, pushBackoffDelays[i]));
+    const rebase = await run(["git", "pull", "--rebase", "-X", "theirs", "origin", defaultBranch]);
+    if (rebase.exitCode !== 0) {
+      // Rebase failed — abort and surface a clear error
+      await run(["git", "rebase", "--abort"]).catch(() => {});
+      throw new Error("non-auto-resolvable rebase conflict");
+    }
+  }
+  if (!pushed) {
+    const totalWindow = pushBackoffDelays.reduce((a, b) => a + b, 0);
+    throw new Error(
+      `git push failed after ${MAX_PUSH_ATTEMPTS} attempts over ${totalWindow}ms total retry window`,
+    );
   }
 
   // ── Post reply as issue comment ──────────────────────────────────────────────

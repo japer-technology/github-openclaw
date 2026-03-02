@@ -241,14 +241,132 @@ describe("Commit and push with retry", () => {
     assert.ok(agent.includes("defaultBranch"));
   });
 
-  it("retries push on conflict", () => {
+  it("retries push on conflict with rebase -X theirs", () => {
     assert.ok(agent.includes("retrying"));
     assert.ok(agent.includes('"git", "pull"'));
     assert.ok(agent.includes('"--rebase"'));
+    assert.ok(
+      agent.includes('"-X", "theirs"'),
+      "Must use -X theirs strategy for auto-resolution"
+    );
   });
 
-  it("has a retry limit", () => {
-    assert.match(agent, /for\s*\(\s*let\s+i\s*=\s*1;\s*i\s*<=\s*3/);
+  it("aborts rebase on failure and throws explicit conflict error", () => {
+    assert.ok(
+      agent.includes('"git", "rebase", "--abort"'),
+      "Must run git rebase --abort on rebase failure"
+    );
+    assert.ok(
+      agent.includes("non-auto-resolvable rebase conflict"),
+      "Must throw explicit error on non-auto-resolvable rebase conflict"
+    );
+  });
+
+  it("has 10 push attempts with aligned backoff array", () => {
+    assert.ok(
+      agent.includes("pushBackoffDelays"),
+      "Must define pushBackoffDelays array"
+    );
+    // Extract the backoff array from source
+    const arrayMatch = agent.match(/pushBackoffDelays\s*=\s*\[([^\]]+)\]/);
+    assert.ok(arrayMatch, "Must define pushBackoffDelays as a literal array");
+    const delays = arrayMatch[1].split(",").map((s) => Number(s.trim()));
+    assert.strictEqual(delays.length, 10, "Backoff array must have exactly 10 entries");
+    // No undefined access: loop count must equal array length
+    assert.ok(
+      agent.includes("MAX_PUSH_ATTEMPTS = pushBackoffDelays.length"),
+      "MAX_PUSH_ATTEMPTS must be derived from array length to prevent off-by-one"
+    );
+    // Sum >= 60 000 ms
+    const sum = delays.reduce((a, b) => a + b, 0);
+    assert.ok(sum >= 60000, `Total retry window must be >= 60s, got ${sum}ms`);
+    // At least 3 distinct values
+    const distinct = new Set(delays).size;
+    assert.ok(distinct >= 3, `Must have at least 3 distinct delay values, got ${distinct}`);
+  });
+
+  it("throws explicit error after exhausting all attempts", () => {
+    assert.ok(
+      agent.includes("MAX_PUSH_ATTEMPTS") && agent.includes("total retry window"),
+      "Must throw with attempt count and total retry window on final failure"
+    );
+  });
+});
+
+// ── 6b. Workflow concurrency (unique per run, no dropped events) ───────────
+
+describe("Workflow concurrency", () => {
+  const live = readFile(".github/workflows/GITOPENCLAW-WORKFLOW-AGENT.yml");
+  const template = readFile(".GITOPENCLAW/install/GITOPENCLAW-WORKFLOW-AGENT.yml");
+
+  it("live workflow has job-level concurrency with github-claw- prefix", () => {
+    assert.ok(
+      live.includes("concurrency:"),
+      "Live workflow must have a concurrency block"
+    );
+    assert.ok(
+      live.includes("github-claw-"),
+      "Concurrency group must use github-claw- prefix"
+    );
+  });
+
+  it("live workflow concurrency includes issue number and run_id", () => {
+    assert.ok(
+      live.includes("${{ github.event.issue.number }}"),
+      "Concurrency group must include issue number"
+    );
+    assert.ok(
+      live.includes("${{ github.run_id }}"),
+      "Concurrency group must include run_id to prevent dropped events"
+    );
+  });
+
+  it("live workflow concurrency has cancel-in-progress: false", () => {
+    assert.ok(
+      live.includes("cancel-in-progress: false"),
+      "cancel-in-progress must be false"
+    );
+  });
+
+  it("template workflow has job-level concurrency matching live", () => {
+    assert.ok(
+      template.includes("concurrency:"),
+      "Template workflow must have a concurrency block"
+    );
+    assert.ok(
+      template.includes("github-claw-"),
+      "Template concurrency group must use github-claw- prefix"
+    );
+    assert.ok(
+      template.includes("${{ github.event.issue.number }}"),
+      "Template concurrency group must include issue number"
+    );
+    assert.ok(
+      template.includes("${{ github.run_id }}"),
+      "Template concurrency group must include run_id"
+    );
+    assert.ok(
+      template.includes("cancel-in-progress: false"),
+      "Template cancel-in-progress must be false"
+    );
+  });
+
+  it("live and template concurrency blocks are byte-for-byte identical", () => {
+    // Extract the concurrency block (3 lines: concurrency:, group:, cancel-in-progress:)
+    const extractConcurrency = (src) => {
+      const lines = src.split("\n");
+      const start = lines.findIndex((l) => l.trim().startsWith("concurrency:"));
+      assert.ok(start >= 0, "Must find concurrency: line");
+      // Grab the concurrency block (concurrency: + group: + cancel-in-progress:)
+      return lines.slice(start, start + 3).join("\n");
+    };
+    const liveConcurrency = extractConcurrency(live);
+    const templateConcurrency = extractConcurrency(template);
+    assert.strictEqual(
+      liveConcurrency,
+      templateConcurrency,
+      "Live and template concurrency blocks must be byte-for-byte identical"
+    );
   });
 });
 

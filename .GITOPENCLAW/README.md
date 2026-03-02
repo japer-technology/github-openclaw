@@ -69,6 +69,13 @@ More providers are supported by OpenClaw — see the [OpenClaw documentation](ht
 - **GitHub-based credentials**: All API keys live in GitHub Actions secrets — no credentials stored in repository files
 - **Scoped commits**: Only `.GITOPENCLAW/` state is committed; source code outside `.GITOPENCLAW/` is never modified
 
+## Concurrency & Push Resilience
+
+- **Same-issue requests** run in parallel (not serialized) — each workflow run gets a unique concurrency group so no events are dropped.
+- **Different issues** run in parallel with no mutual blocking.
+- **Pushes** use a retry loop (up to 10 attempts with backoff) and rebase with `-X theirs` to auto-reconcile concurrent changes.
+- **Unreconcilable conflicts** fail loudly with a clear error (`non-auto-resolvable rebase conflict`).
+
 ## Architecture — source stays raw
 
 `.GITOPENCLAW` is designed around a strict separation:
