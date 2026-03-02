@@ -37,7 +37,8 @@ jobs:
               BASENAME=$(basename "$FILE")
               echo "Moving $FILE → .github/workflows-disabled/$BASENAME"
               mv "$FILE" ".github/workflows-disabled/$BASENAME"
-              git add "$FILE" ".github/workflows-disabled/$BASENAME"
+              git rm --cached "$FILE" 2>/dev/null || true
+              git add ".github/workflows-disabled/$BASENAME"
               MOVED=true
             fi
           done
