@@ -137,6 +137,15 @@ This enables per-issue, per-actor, and per-day cost visibility — all auditable
 
 ## Alternatives Considered
 
+| Alternative | Persistent State | Git Auditable | Zero Infrastructure | Forkable | Per-Repo Scaling |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **`.GITOPENCLAW`** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| External platforms (LangChain, AutoGPT, CrewAI) | ⚠️ External DB | ❌ | ❌ | ❌ | ❌ |
+| GitHub Apps / Bot accounts | ⚠️ External DB | ❌ | ❌ | ❌ | ❌ |
+| GitHub Copilot Extensions | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Self-hosted runners | ✅ | ⚠️ Partial | ❌ | ❌ | ❌ |
+| `workflow_dispatch` | ❌ | ❌ | ✅ | ✅ | ✅ |
+
 1. **External agent platforms (LangChain, AutoGPT, CrewAI, etc.)** — All require separate infrastructure. They solve the "intelligence" problem but not the "where does it live" problem. `.GITOPENCLAW` eliminates the infrastructure layer altogether.
 
 2. **GitHub Apps / Bot accounts** — A GitHub App can respond to issues, but the App itself runs on external infrastructure. The agent's state resides in an external database, and the scaling model is per-App rather than per-repo. `.GITOPENCLAW` inverts this: the agent runs *inside* the repo's own Actions, and state is committed to git.
